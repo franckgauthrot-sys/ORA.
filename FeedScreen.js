@@ -56,8 +56,8 @@ function Badge({ catId }) {
 
 function DilemmeCard({ d, onVote, userVotes }) {
   const voted = userVotes[d.id];
-  const total = d.votesA + d.votesB + (voted ? 1 : 0);
-  const pctA  = total === 0 ? 50 : Math.round(((d.votesA + (voted === 'A' ? 1 : 0)) / total) * 100);
+  const total = d.votesA + d.votesB;
+  const pctA  = total === 0 ? 50 : Math.round((d.votesA / total) * 100);
   const pctB  = 100 - pctA;
   const barA  = useRef(new Animated.Value(0)).current;
   const barB  = useRef(new Animated.Value(0)).current;
@@ -68,8 +68,8 @@ function DilemmeCard({ d, onVote, userVotes }) {
   const dot3 = useRef(new Animated.Value(0)).current;
 const handleShare = async () => {
   const total = d.votesA + d.votesB;
-  const pctA = total ? Math.round((d.votesA / total) * 100) : 50;
-  const pctB = 100 - pctA;
+const pctA  = total === 0 ? 50 : Math.round((d.votesA / total) * 100);
+const pctB  = 100 - pctA;
   await Share.share({
     message: `ORA. — Dilemme\n\n"${d.question}"\n\n${d.optionA} ${pctA}% vs ${d.optionB} ${pctB}%\n\n${total} votes — Et toi tu choisirais quoi ?`,
   });

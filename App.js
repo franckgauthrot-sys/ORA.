@@ -28,20 +28,19 @@ useEffect(() => {
   return () => clearTimeout(t);
 }, []);
 
- const handleVote = (id, choix) => {
-    if (choix === null) {
-      setUserVotes(v => { const n = { ...v }; delete n[id]; return n; });
-      setFeed(f => f.map(d => d.id === id ? { ...d, votesA: Math.max(0, d.votesA - (userVotes[id] === 'A' ? 1 : 0)), votesB: Math.max(0, d.votesB - (userVotes[id] === 'B' ? 1 : 0)) } : d));
-    } else {
-      const prev = userVotes[id];
-      setUserVotes(v => ({ ...v, [id]: choix }));
-      setFeed(f => f.map(d => d.id === id ? {
-        ...d,
-        votesA: d.votesA + (choix === 'A' ? 1 : 0) - (prev === 'A' ? 1 : 0),
-        votesB: d.votesB + (choix === 'B' ? 1 : 0) - (prev === 'B' ? 1 : 0),
-      } : d));
-    }
-  };
+const handleVote = (id, choix) => {
+  if (choix === null) {
+    setUserVotes(v => { const n = { ...v }; delete n[id]; return n; });
+  } else {
+    setUserVotes(v => ({ ...v, [id]: choix }));
+  }
+};
+
+const feedWithVotes = feed.map(d => ({
+  ...d,
+  votesA: d.votesA + (userVotes[d.id] === 'A' ? 1 : 0),
+  votesB: d.votesB + (userVotes[d.id] === 'B' ? 1 : 0),
+}));
 
   const handlePost = ({ question, optionA, optionB, categories }) => {
     const newPost = {
@@ -85,7 +84,7 @@ useEffect(() => {
       {/* Pages */}
       {page === 'feed' && (
         <FeedScreen
-          dilemmes={feed}
+          dilemmes={feedWithVotes}
           userVotes={userVotes}
           onVote={handleVote}
           activeTab={activeTab}
@@ -101,7 +100,7 @@ useEffect(() => {
     votedCount={votedCount}
     streak={3}
     userVotes={userVotes}
-    feed={feed}
+    feed={feedWithVotes}
     onVote={handleVote}
   />
 )}
