@@ -64,12 +64,15 @@ export default function App() {
         <PostScreen onPost={handlePost} />
       )}
       {page === 'profil' && (
-        <ProfilScreen
-          myPosts={myPosts}
-          votedCount={votedCount}
-          streak={3}
-        />
-      )}
+  <ProfilScreen
+    myPosts={myPosts}
+    votedCount={votedCount}
+    streak={3}
+    userVotes={userVotes}
+    feed={feed}
+    onVote={handleVote}
+  />
+)}
 
       {/* Nav bar */}
       <View style={styles.nav}>

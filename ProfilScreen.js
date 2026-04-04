@@ -1,5 +1,5 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
 
 const P = {
   bg:         '#f2f0eb',
@@ -25,12 +25,79 @@ const BADGES = [
   { label: 'Top voteur',  icon: '⭐', condition: (v, p) => v >= 5 },
 ];
 
-export default function ProfilScreen({ myPosts, votedCount, streak }) {
+function MiniCard({ d, userVotes, onVote }) {
+  const voted = userVotes[d.id];
+  const total = d.votesA + d.votesB + (voted ? 1 : 0);
+  const pctA  = total === 0 ? 50 : Math.round(((d.votesA + (voted === 'A' ? 1 : 0)) / total) * 100);
+  const pctB  = 100 - pctA;
+  const barA  = useRef(new Animated.Value(0)).current;
+  const barB  = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(barA, { toValue: pctA, duration: 800, useNativeDriver: false }),
+      Animated.timing(barB, { toValue: pctB, duration: 800, useNativeDriver: false }),
+    ]).start();
+  }, []);
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardAuteur}>{d.auteur}</Text>
+      <Text style={styles.cardQuestion}>"{d.question}"</Text>
+
+      {[
+        { label: d.optionA, key: 'A', pct: pctA, color: P.rose, deep: P.roseDeep, track: P.roseLight, bar: barA },
+        { label: d.optionB, key: 'B', pct: pctB, color: P.teal, deep: P.tealDeep, track: P.tealLight, bar: barB },
+      ].map(opt => (
+        <View key={opt.key} style={{ marginBottom: 10 }}>
+          <View style={styles.barRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
+              {voted === opt.key && (
+                <View style={[styles.myVoteBadge, { backgroundColor: opt.color }]}>
+                  <Text style={styles.myVoteText}>✓</Text>
+                </View>
+              )}
+              <Text style={[styles.barLabel, { color: opt.deep }]} numberOfLines={1}>{opt.label}</Text>
+            </View>
+            <Text style={[styles.barPct, { color: opt.deep }]}>{opt.pct}%</Text>
+          </View>
+          <View style={[styles.track, { backgroundColor: opt.track }]}>
+            <Animated.View style={[styles.bar, { backgroundColor: opt.color, width: opt.bar.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }]} />
+          </View>
+        </View>
+      ))}
+
+      <Text style={styles.totalVotes}>{total.toLocaleString()} votes</Text>
+
+      {/* Changer / Annuler */}
+      <View style={styles.changeRow}>
+        {['A', 'B'].map(key => (
+          <TouchableOpacity key={key} onPress={() => { if (voted !== key) onVote(d.id, key); }}
+            style={[styles.changeBtn, {
+              borderColor: voted === key ? (key === 'A' ? P.roseDeep : P.tealDeep) : P.cardBorder,
+              backgroundColor: voted === key ? (key === 'A' ? P.roseLight : P.tealLight) : 'transparent'
+            }]}>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: voted === key ? (key === 'A' ? P.roseDeep : P.tealDeep) : P.textLight }}>
+              {voted === key ? '✓ ' : ''}{key}
+            </Text>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity onPress={() => onVote(d.id, null)}>
+          <Text style={styles.annuler}>Annuler</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+export default function ProfilScreen({ myPosts, votedCount, streak, userVotes, feed, onVote }) {
   const [tab, setTab] = useState('votes');
+
+  const votedDilemmes = feed ? feed.filter(d => userVotes[d.id]) : [];
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header */}
+      {/* Logo */}
       <Text style={styles.logo}>ORA<Text style={{ color: P.teal }}>.</Text></Text>
 
       {/* Avatar + stats */}
@@ -51,9 +118,15 @@ export default function ProfilScreen({ myPosts, votedCount, streak }) {
         {BADGES.map((b, i) => {
           const earned = b.condition(votedCount, myPosts.length);
           return (
-            <View key={i} style={[styles.badge, { backgroundColor: earned ? P.roseLight : P.bg, borderColor: earned ? P.rose : P.cardBorder, opacity: earned ? 1 : 0.4 }]}>
+            <View key={i} style={[styles.badge, {
+              backgroundColor: earned ? P.roseLight : P.bg,
+              borderColor: earned ? P.rose : P.cardBorder,
+              opacity: earned ? 1 : 0.4
+            }]}>
               <Text style={styles.badgeIcon}>{b.icon}</Text>
-              <Text style={[styles.badgeLabel, { color: earned ? P.roseDeep : P.textLight }]}>{b.label.toUpperCase()}</Text>
+              <Text style={[styles.badgeLabel, { color: earned ? P.roseDeep : P.textLight }]}>
+                {b.label.toUpperCase()}
+              </Text>
             </View>
           );
         })}
@@ -63,25 +136,42 @@ export default function ProfilScreen({ myPosts, votedCount, streak }) {
       <View style={styles.tabs}>
         {[['votes', 'Mes votes'], ['posts', 'Mes dilemmes']].map(([id, label]) => (
           <TouchableOpacity key={id} onPress={() => setTab(id)}
-            style={[styles.tab, { backgroundColor: tab === id ? P.text : P.card, borderColor: tab === id ? 'transparent' : P.cardBorder }]}>
-            <Text style={[styles.tabText, { color: tab === id ? '#fff' : P.textMid }]}>{label.toUpperCase()}</Text>
+            style={[styles.tab, {
+              backgroundColor: tab === id ? P.text : P.card,
+              borderColor: tab === id ? 'transparent' : P.cardBorder
+            }]}>
+            <Text style={[styles.tabText, { color: tab === id ? '#fff' : P.textMid }]}>
+              {label.toUpperCase()}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Content */}
+      {/* Mes votes */}
       {tab === 'votes' && (
-        votedCount === 0
+        votedDilemmes.length === 0
           ? <Text style={styles.empty}>Tu n'as pas encore voté 🌵</Text>
-          : <Text style={styles.info}>{votedCount} vote{votedCount > 1 ? 's' : ''} enregistré{votedCount > 1 ? 's' : ''} ✓</Text>
+          : votedDilemmes.map(d => (
+            <MiniCard key={d.id} d={d} userVotes={userVotes} onVote={onVote} />
+          ))
       )}
+
+      {/* Mes dilemmes */}
       {tab === 'posts' && (
         myPosts.length === 0
           ? <Text style={styles.empty}>Tu n'as pas encore posté 🌵</Text>
           : myPosts.map((d, i) => (
-            <View key={i} style={styles.postCard}>
-              <Text style={styles.postQuestion}>"{d.question}"</Text>
-              <Text style={styles.postOptions}>{d.optionA} vs {d.optionB}</Text>
+            <View key={i} style={styles.card}>
+              <Text style={styles.cardQuestion}>"{d.question}"</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                <View style={[styles.optionPill, { backgroundColor: P.roseLight }]}>
+                  <Text style={[styles.optionPillText, { color: P.roseDeep }]}>{d.optionA}</Text>
+                </View>
+                <View style={[styles.optionPill, { backgroundColor: P.tealLight }]}>
+                  <Text style={[styles.optionPillText, { color: P.tealDeep }]}>{d.optionB}</Text>
+                </View>
+              </View>
+              <Text style={styles.totalVotes}>0 votes pour l'instant</Text>
             </View>
           ))
       )}
@@ -90,24 +180,36 @@ export default function ProfilScreen({ myPosts, votedCount, streak }) {
 }
 
 const styles = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: P.bg },
-  content:     { padding: 20, paddingTop: 60, paddingBottom: 100 },
-  logo:        { fontSize: 30, fontWeight: '900', color: P.text, letterSpacing: -1, marginBottom: 24 },
-  profileRow:  { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
-  avatar:      { width: 56, height: 56, borderRadius: 28, backgroundColor: P.teal, alignItems: 'center', justifyContent: 'center' },
-  avatarText:  { fontSize: 22, fontWeight: '900', color: '#fff' },
-  name:        { fontSize: 18, fontWeight: '800', color: P.text },
-  stats:       { fontSize: 12, color: P.textLight, marginTop: 2 },
-  badges:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
-  badge:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 8, borderWidth: 1.5 },
-  badgeIcon:   { fontSize: 13 },
-  badgeLabel:  { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  tabs:        { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  tab:         { flex: 1, padding: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1.5 },
-  tabText:     { fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
-  empty:       { textAlign: 'center', color: P.textLight, fontSize: 14, marginTop: 60, lineHeight: 28 },
-  info:        { textAlign: 'center', color: P.sage, fontSize: 14, fontWeight: '700', marginTop: 40 },
-  postCard:    { backgroundColor: P.card, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1.5, borderColor: P.cardBorder },
-  postQuestion:{ fontSize: 14, fontWeight: '700', color: P.text, marginBottom: 8 },
-  postOptions: { fontSize: 12, color: P.textMid },
+  container:    { flex: 1, backgroundColor: P.bg },
+  content:      { padding: 20, paddingTop: 60, paddingBottom: 100 },
+  logo:         { fontSize: 30, fontWeight: '900', color: P.text, letterSpacing: -1, marginBottom: 24 },
+  profileRow:   { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
+  avatar:       { width: 56, height: 56, borderRadius: 28, backgroundColor: P.teal, alignItems: 'center', justifyContent: 'center' },
+  avatarText:   { fontSize: 22, fontWeight: '900', color: '#fff' },
+  name:         { fontSize: 18, fontWeight: '800', color: P.text },
+  stats:        { fontSize: 12, color: P.textLight, marginTop: 2 },
+  badges:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  badge:        { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 8, borderWidth: 1.5 },
+  badgeIcon:    { fontSize: 13 },
+  badgeLabel:   { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  tabs:         { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  tab:          { flex: 1, padding: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1.5 },
+  tabText:      { fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
+  empty:        { textAlign: 'center', color: P.textLight, fontSize: 14, marginTop: 60, lineHeight: 28 },
+  card:         { backgroundColor: P.card, borderRadius: 20, padding: 20, marginBottom: 14, borderWidth: 1.5, borderColor: P.cardBorder },
+  cardAuteur:   { fontSize: 12, fontWeight: '700', color: P.text, marginBottom: 4 },
+  cardQuestion: { fontSize: 15, fontWeight: '700', color: P.text, lineHeight: 22, marginBottom: 14 },
+  barRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  barLabel:     { fontSize: 12, fontWeight: '700', flex: 1 },
+  barPct:       { fontSize: 13, fontWeight: '900' },
+  track:        { height: 9, borderRadius: 999, overflow: 'hidden' },
+  bar:          { height: '100%', borderRadius: 999 },
+  totalVotes:   { fontSize: 11, color: P.textLight, textAlign: 'center', marginTop: 8 },
+  myVoteBadge:  { borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  myVoteText:   { fontSize: 10, fontWeight: '800', color: '#fff' },
+  changeRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: P.cardBorder },
+  changeBtn:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 2 },
+  annuler:      { fontSize: 11, color: P.textLight, fontWeight: '600' },
+  optionPill:   { flex: 1, padding: 10, borderRadius: 10, alignItems: 'center' },
+  optionPillText:{ fontSize: 12, fontWeight: '800' },
 });
