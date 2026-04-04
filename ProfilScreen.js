@@ -156,24 +156,16 @@ export default function ProfilScreen({ myPosts, votedCount, streak, userVotes, f
           ))
       )}
 
-      {/* Mes dilemmes */}
+     {/* Mes dilemmes */}
       {tab === 'posts' && (
         myPosts.length === 0
           ? <Text style={styles.empty}>Tu n'as pas encore posté 🌵</Text>
-          : myPosts.map((d, i) => (
-            <View key={i} style={styles.card}>
-              <Text style={styles.cardQuestion}>"{d.question}"</Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                <View style={[styles.optionPill, { backgroundColor: P.roseLight }]}>
-                  <Text style={[styles.optionPillText, { color: P.roseDeep }]}>{d.optionA}</Text>
-                </View>
-                <View style={[styles.optionPill, { backgroundColor: P.tealLight }]}>
-                  <Text style={[styles.optionPillText, { color: P.tealDeep }]}>{d.optionB}</Text>
-                </View>
-              </View>
-              <Text style={styles.totalVotes}>0 votes pour l'instant</Text>
-            </View>
-          ))
+          : myPosts.map((d, i) => {
+              const live = feed ? feed.find(x => x.id === d.id) || d : d;
+              return (
+                <MiniCard key={i} d={live} userVotes={userVotes} onVote={onVote} />
+              );
+            })
       )}
     </ScrollView>
   );

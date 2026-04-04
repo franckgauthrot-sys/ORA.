@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import FeedScreen, { DILEMMES_INIT } from './FeedScreen';
 import PostScreen from './PostScreen';
 import ProfilScreen from './ProfilScreen';
+import { useState, useEffect } from 'react';
 
 const P = {
   bg:       '#f2f0eb',
@@ -18,12 +18,28 @@ export default function App() {
   const [userVotes, setUserVotes] = useState({});
   const [myPosts, setMyPosts]   = useState([]);
   const [activeTab, setActiveTab] = useState('trending');
+  const [notif, setNotif] = useState(null);
+  const [fomoSeen, setFomoSeen] = useState(false);
 
-  const handleVote = (id, choix) => {
+useEffect(() => {
+  const t = setTimeout(() => {
+    setNotif('12 personnes ont voté sur ton dilemme 🔥');
+  }, 5000);
+  return () => clearTimeout(t);
+}, []);
+
+ const handleVote = (id, choix) => {
     if (choix === null) {
       setUserVotes(v => { const n = { ...v }; delete n[id]; return n; });
+      setFeed(f => f.map(d => d.id === id ? { ...d, votesA: Math.max(0, d.votesA - (userVotes[id] === 'A' ? 1 : 0)), votesB: Math.max(0, d.votesB - (userVotes[id] === 'B' ? 1 : 0)) } : d));
     } else {
+      const prev = userVotes[id];
       setUserVotes(v => ({ ...v, [id]: choix }));
+      setFeed(f => f.map(d => d.id === id ? {
+        ...d,
+        votesA: d.votesA + (choix === 'A' ? 1 : 0) - (prev === 'A' ? 1 : 0),
+        votesB: d.votesB + (choix === 'B' ? 1 : 0) - (prev === 'B' ? 1 : 0),
+      } : d));
     }
   };
 
@@ -50,6 +66,22 @@ export default function App() {
 
   return (
     <View style={styles.container}>
+      {/* Notification toast */}
+      {notif && (
+        <TouchableOpacity
+          onPress={() => setNotif(null)}
+          style={styles.toast}>
+          <Text style={styles.toastText}>🔔 {notif}</Text>
+        </TouchableOpacity>
+      )}
+      {/* FOMO badge */}
+{!fomoSeen && page === 'feed' && (
+  <TouchableOpacity
+    onPress={() => setFomoSeen(true)}
+    style={styles.fomo}>
+    <Text style={styles.fomoText}>4 nouveaux 🔥</Text>
+  </TouchableOpacity>
+)}
       {/* Pages */}
       {page === 'feed' && (
         <FeedScreen
@@ -103,4 +135,8 @@ const styles = StyleSheet.create({
   navLabel:   { fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
   streakDot:  { position: 'absolute', top: -4, right: -10, backgroundColor: '#e8a0a8', borderRadius: 8, width: 15, height: 15, alignItems: 'center', justifyContent: 'center' },
   streakText: { fontSize: 8, fontWeight: '800', color: '#fff' },
+toast:      { position: 'absolute', top: 54, right: 16, backgroundColor: '#1a1714', borderRadius: 14, padding: 12, zIndex: 999, maxWidth: 220 },
+toastText:  { color: '#fff', fontSize: 13, fontWeight: '700', flex: 1 },
+fomo:     { position: 'absolute', top: 54, right: 16, backgroundColor: '#e8a0a8', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, zIndex: 998 },
+fomoText: { color: '#fff', fontSize: 12, fontWeight: '800' },
 });
