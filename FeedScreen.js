@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { useRef, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Share } from 'react-native';
 
 const P = {
   bg:         '#f2f0eb',
@@ -66,7 +66,14 @@ function DilemmeCard({ d, onVote, userVotes }) {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
-
+const handleShare = async () => {
+  const total = d.votesA + d.votesB;
+  const pctA = total ? Math.round((d.votesA / total) * 100) : 50;
+  const pctB = 100 - pctA;
+  await Share.share({
+    message: `ORA. — Dilemme\n\n"${d.question}"\n\n${d.optionA} ${pctA}% vs ${d.optionB} ${pctB}%\n\n${total} votes — Et toi tu choisirais quoi ?`,
+  });
+};
   useEffect(() => {
     if (voted && revealed) {
       Animated.parallel([
@@ -165,6 +172,11 @@ function DilemmeCard({ d, onVote, userVotes }) {
           <Text style={[styles.majorityMsg, { color: isMajority ? P.sage : P.palmPink }]}>
             {isMajority ? 'Tu es dans la majorité 🙌' : 'Tu es dans la minorité 🤔'}
           </Text>
+
+{/* Partager */}
+<TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
+  <Text style={styles.shareText}>Partager →</Text>
+</TouchableOpacity>
 
           {/* Changer / Annuler */}
           <View style={styles.changeRow}>
@@ -290,4 +302,6 @@ const styles = StyleSheet.create({
   changeBtn:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 2 },
   annuler:      { fontSize: 11, color: P.textLight, fontWeight: '600' },
   fixedTabs: { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginBottom: 6 },
+shareBtn:  { paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#e0dbd2', marginTop: 12 },
+shareText: { fontSize: 12, fontWeight: '700', color: '#a89e90' },
 });
