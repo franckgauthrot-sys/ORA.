@@ -4,6 +4,7 @@ import PostScreen from './PostScreen';
 import ProfilScreen from './ProfilScreen';
 import { useState, useEffect } from 'react';
 import { getDilemmes, postDilemme, voterPour, annulerVote, getMesVotes } from './api';
+import AuthScreen from './AuthScreen';
 
 const P = {
   bg:        '#f2f0eb',
@@ -22,6 +23,7 @@ export default function App() {
   const [notif, setNotif]         = useState(null);
   const [fomoSeen, setFomoSeen]   = useState(false);
   const [loading, setLoading]     = useState(true);
+  const [user, setUser] = useState(null);
 
   // Charger les dilemmes depuis Supabase
   useEffect(() => {
@@ -143,7 +145,9 @@ export default function App() {
       </View>
     );
   }
-
+if (!user) {
+    return <AuthScreen onAuth={setUser} />;
+  }
   return (
     <View style={styles.container}>
       {notif && (
