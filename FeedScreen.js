@@ -62,7 +62,9 @@ function DilemmeCard({ d, onVote, userVotes }) {
   const barA  = useRef(new Animated.Value(0)).current;
   const barB  = useRef(new Animated.Value(0)).current;
   const [revealing, setRevealing] = useState(false);
-  const [revealed,  setRevealed]  = useState(!!voted);
+const [revealed,  setRevealed]  = useState(!!voted);
+const [showPlus,  setShowPlus]  = useState(false);
+const plusAnim = useRef(new Animated.Value(0)).current;
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
@@ -96,7 +98,16 @@ const pctB  = 100 - pctA;
   const handleVote = (id, choix) => {
     onVote(id, choix);
     setRevealing(true);
-    setTimeout(() => { setRevealing(false); setRevealed(true); }, 1400);
+    setTimeout(() => {
+      setRevealing(false);
+      setRevealed(true);
+      setShowPlus(true);
+      plusAnim.setValue(0);
+      Animated.sequence([
+        Animated.timing(plusAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(plusAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start(() => setShowPlus(false));
+    }, 1400);
   };
 
   const isMajority = voted && (voted === 'A' ? pctA : pctB) > 50;
@@ -168,7 +179,20 @@ const pctB  = 100 - pctA;
               </View>
             </View>
           ))}
-          <Text style={styles.totalVotes}>{total.toLocaleString()} votes</Text>
+<View style={{ alignItems: 'center', marginTop: 8 }}>
+  {showPlus && (
+    <Animated.Text style={{
+      fontSize: 16,
+      fontWeight: '900',
+      color: P.rose,
+      opacity: plusAnim,
+      transform: [{ translateY: plusAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) }],
+    }}>
+      +1
+    </Animated.Text>
+  )}
+  <Text style={styles.totalVotes}>{total.toLocaleString()} votes</Text>
+</View>
           <Text style={[styles.majorityMsg, { color: isMajority ? P.sage : P.palmPink }]}>
             {isMajority ? 'Tu es dans la majorité 🙌' : 'Tu es dans la minorité 🤔'}
           </Text>
