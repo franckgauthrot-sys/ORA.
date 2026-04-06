@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Share } from 'react-native';
 
 const P = {
@@ -62,28 +61,27 @@ function DilemmeCard({ d, onVote, userVotes }) {
   const barA  = useRef(new Animated.Value(0)).current;
   const barB  = useRef(new Animated.Value(0)).current;
   const [revealing, setRevealing] = useState(false);
-const [revealed,  setRevealed]  = useState(!!voted);
-const [showPlus,  setShowPlus]  = useState(false);
-const plusAnim = useRef(new Animated.Value(0)).current;
+  const [revealed,  setRevealed]  = useState(!!voted);
+  const [showPlus,  setShowPlus]  = useState(false);
+  const plusAnim = useRef(new Animated.Value(0)).current;
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
-const handleShare = async () => {
-  const total = d.votesA + d.votesB;
-const pctA  = total === 0 ? 50 : Math.round((d.votesA / total) * 100);
-const pctB  = 100 - pctA;
-  await Share.share({
-    message: `ORA. — Dilemme\n\n"${d.question}"\n\n${d.optionA} ${pctA}% vs ${d.optionB} ${pctB}%\n\n${total} votes — Et toi tu choisirais quoi ?`,
-  });
-};
+
+  const animateBars = (pA, pB) => {
+    barA.setValue(0);
+    barB.setValue(0);
+    Animated.parallel([
+      Animated.timing(barA, { toValue: pA, duration: 900, useNativeDriver: false }),
+      Animated.timing(barB, { toValue: pB, duration: 900, useNativeDriver: false }),
+    ]).start();
+  };
+
   useEffect(() => {
     if (voted && revealed) {
-      Animated.parallel([
-        Animated.timing(barA, { toValue: pctA, duration: 900, useNativeDriver: false }),
-        Animated.timing(barB, { toValue: pctB, duration: 900, useNativeDriver: false }),
-      ]).start();
+      animateBars(pctA, pctB);
     }
-  }, [revealed]);
+  }, [voted, pctA, pctB, revealed]);
 
   useEffect(() => {
     if (revealing) {
@@ -110,11 +108,32 @@ const pctB  = 100 - pctA;
     }, 1400);
   };
 
+  const handleChangeVote = (key) => {
+    if (voted === key) return;
+    onVote(d.id, key);
+    animateBars(pctA, pctB);
+  };
+
+  const handleAnnuler = () => {
+    onVote(d.id, null);
+    setRevealed(false);
+    barA.setValue(0);
+    barB.setValue(0);
+  };
+
+  const handleShare = async () => {
+    const t = d.votesA + d.votesB;
+    const pA = t === 0 ? 50 : Math.round((d.votesA / t) * 100);
+    const pB = 100 - pA;
+    await Share.share({
+      message: `ORA. — Dilemme\n\n"${d.question}"\n\n${d.optionA} ${pA}% vs ${d.optionB} ${pB}%\n\n${t} votes — Et toi tu choisirais quoi ?`,
+    });
+  };
+
   const isMajority = voted && (voted === 'A' ? pctA : pctB) > 50;
 
   return (
     <View style={styles.card}>
-      {/* Header */}
       <View style={styles.cardHeader}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{d.auteur[0]}</Text>
@@ -125,15 +144,12 @@ const pctB  = 100 - pctA;
         </View>
       </View>
 
-      {/* Badges */}
       <View style={styles.badges}>
         {d.categories.map(c => <Badge key={c} catId={c} />)}
       </View>
 
-      {/* Question */}
       <Text style={styles.question}>"{d.question}"</Text>
 
-      {/* Vote / Suspense / Results */}
       {!voted && !revealing ? (
         <View>
           <Text style={styles.voteCount}>{(d.votesA + d.votesB).toLocaleString()}</Text>
@@ -179,40 +195,37 @@ const pctB  = 100 - pctA;
               </View>
             </View>
           ))}
-<View style={{ alignItems: 'center', marginTop: 8 }}>
-  {showPlus && (
-    <Animated.Text style={{
-      fontSize: 16,
-      fontWeight: '900',
-      color: P.rose,
-      opacity: plusAnim,
-      transform: [{ translateY: plusAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) }],
-    }}>
-      +1
-    </Animated.Text>
-  )}
-  <Text style={styles.totalVotes}>{total.toLocaleString()} votes</Text>
-</View>
+
+          <View style={{ alignItems: 'center', marginTop: 8 }}>
+            {showPlus && (
+              <Animated.Text style={{ fontSize: 16, fontWeight: '900', color: P.rose, opacity: plusAnim, transform: [{ translateY: plusAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) }] }}>
+                +1
+              </Animated.Text>
+            )}
+            <Text style={styles.totalVotes}>{total.toLocaleString()} votes</Text>
+          </View>
+
           <Text style={[styles.majorityMsg, { color: isMajority ? P.sage : P.palmPink }]}>
             {isMajority ? 'Tu es dans la majorité 🙌' : 'Tu es dans la minorité 🤔'}
           </Text>
 
-{/* Partager */}
-<TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
-  <Text style={styles.shareText}>Partager →</Text>
-</TouchableOpacity>
+          <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
+            <Text style={styles.shareText}>Partager →</Text>
+          </TouchableOpacity>
 
-          {/* Changer / Annuler */}
           <View style={styles.changeRow}>
             {['A', 'B'].map(key => (
-              <TouchableOpacity key={key} onPress={() => { if (voted !== key) onVote(d.id, key); }}
-                style={[styles.changeBtn, { borderColor: voted === key ? (key === 'A' ? P.roseDeep : P.tealDeep) : P.cardBorder, backgroundColor: voted === key ? (key === 'A' ? P.roseLight : P.tealLight) : 'transparent' }]}>
+              <TouchableOpacity key={key} onPress={() => handleChangeVote(key)}
+                style={[styles.changeBtn, {
+                  borderColor: voted === key ? (key === 'A' ? P.roseDeep : P.tealDeep) : P.cardBorder,
+                  backgroundColor: voted === key ? (key === 'A' ? P.roseLight : P.tealLight) : 'transparent'
+                }]}>
                 <Text style={{ fontSize: 11, fontWeight: '800', color: voted === key ? (key === 'A' ? P.roseDeep : P.tealDeep) : P.textLight }}>
                   {voted === key ? '✓ ' : ''}{key}
                 </Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity onPress={() => { onVote(d.id, null); setRevealed(false); }}>
+            <TouchableOpacity onPress={handleAnnuler}>
               <Text style={styles.annuler}>Annuler</Text>
             </TouchableOpacity>
           </View>
@@ -223,12 +236,6 @@ const pctB  = 100 - pctA;
 }
 
 export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onTabChange }) {
-  const tabs = [
-    { id: 'trending', label: 'Trending' },
-    { id: 'all',      label: 'Tous' },
-    ...CATEGORIES.map(c => ({ id: c.id, label: c.label })),
-  ];
-
   let displayed;
   if (activeTab === 'trending') {
     displayed = [...dilemmes].sort((a, b) => (b.votesA + b.votesB) - (a.votesA + a.votesB));
@@ -240,39 +247,35 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.logo}>ORA<Text style={{ color: P.teal }}>.</Text></Text>
       </View>
 
-    {/* Row 1 — Trending + Tous fixes */}
-<View style={styles.fixedTabs}>
-  {[{ id: 'trending', label: 'Trending' }, { id: 'all', label: 'Tous' }].map(tab => {
-    const active = activeTab === tab.id;
-    return (
-      <TouchableOpacity key={tab.id} onPress={() => onTabChange(tab.id)}
-        style={[styles.tab, { backgroundColor: active ? (tab.id === 'trending' ? '#e8a0a8' : '#1a1714') : '#ffffff', borderColor: active ? 'transparent' : '#e0dbd2' }]}>
-        <Text style={[styles.tabText, { color: active ? '#fff' : '#6a6058' }]}>{tab.label.toUpperCase()}</Text>
-      </TouchableOpacity>
-    );
-  })}
-</View>
+      <View style={styles.fixedTabs}>
+        {[{ id: 'trending', label: 'Trending' }, { id: 'all', label: 'Tous' }].map(tab => {
+          const active = activeTab === tab.id;
+          return (
+            <TouchableOpacity key={tab.id} onPress={() => onTabChange(tab.id)}
+              style={[styles.tab, { backgroundColor: active ? (tab.id === 'trending' ? '#e8a0a8' : '#1a1714') : '#ffffff', borderColor: active ? 'transparent' : '#e0dbd2' }]}>
+              <Text style={[styles.tabText, { color: active ? '#fff' : '#6a6058' }]}>{tab.label.toUpperCase()}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
-{/* Row 2 — Catégories scrollables */}
-<ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabsContent}>
-  {CATEGORIES.map(cat => {
-    const active = activeTab === cat.id;
-    const cs = CAT_STYLE[cat.id];
-    return (
-      <TouchableOpacity key={cat.id} onPress={() => onTabChange(cat.id)}
-        style={[styles.tab, { backgroundColor: active ? cs.bg : '#ffffff', borderColor: active ? cs.text : '#e0dbd2' }]}>
-        <Text style={[styles.tabText, { color: active ? cs.text : '#6a6058' }]}>{cat.label.toUpperCase()}</Text>
-      </TouchableOpacity>
-    );
-  })}
-</ScrollView>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabsContent}>
+        {CATEGORIES.map(cat => {
+          const active = activeTab === cat.id;
+          const cs = CAT_STYLE[cat.id];
+          return (
+            <TouchableOpacity key={cat.id} onPress={() => onTabChange(cat.id)}
+              style={[styles.tab, { backgroundColor: active ? cs.bg : '#ffffff', borderColor: active ? cs.text : '#e0dbd2' }]}>
+              <Text style={[styles.tabText, { color: active ? cs.text : '#6a6058' }]}>{cat.label.toUpperCase()}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
-      {/* Feed */}
       <ScrollView contentContainerStyle={styles.feed}>
         {displayed.map(d => (
           <DilemmeCard key={d.id} d={d} onVote={onVote} userVotes={userVotes} />
@@ -289,7 +292,7 @@ const styles = StyleSheet.create({
   header:       { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 8 },
   logo:         { fontSize: 30, fontWeight: '900', color: P.text, letterSpacing: -1 },
   tabsScroll:   { height: 44, flexShrink: 0, flexGrow: 0 },
-  tabsContent:  { paddingLeft: 16, paddingRight: 32, gap: 7, paddingVertical: 4 },
+  tabsContent:  { paddingLeft: 16, paddingRight: 60, gap: 7, paddingVertical: 4 },
   fixedTabs:    { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginBottom: 6 },
   tab:          { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, height: 34, justifyContent: 'center', alignItems: 'center' },
   tabText:      { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
@@ -325,7 +328,6 @@ const styles = StyleSheet.create({
   changeRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: P.cardBorder },
   changeBtn:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 2 },
   annuler:      { fontSize: 11, color: P.textLight, fontWeight: '600' },
-  fixedTabs: { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginBottom: 6 },
-shareBtn:  { paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#e0dbd2', marginTop: 12 },
-shareText: { fontSize: 12, fontWeight: '700', color: '#a89e90' },
+  shareBtn:     { paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#e0dbd2', marginTop: 12 },
+  shareText:    { fontSize: 12, fontWeight: '700', color: '#a89e90' },
 });

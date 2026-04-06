@@ -15,7 +15,6 @@ const getUserId = async () => {
   }
 };
 
-// Récupérer tous les dilemmes
 export const getDilemmes = async () => {
   const { data, error } = await supabase
     .from('dilemmes')
@@ -25,7 +24,6 @@ export const getDilemmes = async () => {
   return data;
 };
 
-// Poster un dilemme
 export const postDilemme = async ({ question, optionA, optionB, categories }) => {
   const { data, error } = await supabase
     .from('dilemmes')
@@ -42,23 +40,26 @@ export const postDilemme = async ({ question, optionA, optionB, categories }) =>
   return data;
 };
 
-// Voter
 export const voterPour = async (dilemmeId, choix) => {
-  const userId = getUserId();
+  const userId = await getUserId();
+
+  // Enregistrer le vote
   const { error } = await supabase
     .from('votes')
-    .upsert({ dilemme_id: dilemmeId, user_id: userId, choix },
-      { onConflict: 'dilemme_id,user_id' });
+    .upsert(
+      { dilemme_id: dilemmeId, user_id: userId, choix },
+      { onConflict: 'dilemme_id,user_id' }
+    );
   if (error) throw error;
 
-  // Mettre à jour les compteurs
-  const { data: votes } = await supabase
+  // Recalculer les compteurs depuis la table votes
+  const { data: allVotes } = await supabase
     .from('votes')
     .select('choix')
     .eq('dilemme_id', dilemmeId);
 
-  const votesA = votes.filter(v => v.choix === 'A').length;
-  const votesB = votes.filter(v => v.choix === 'B').length;
+  const votesA = allVotes.filter(v => v.choix === 'A').length;
+  const votesB = allVotes.filter(v => v.choix === 'B').length;
 
   await supabase
     .from('dilemmes')
@@ -66,19 +67,32 @@ export const voterPour = async (dilemmeId, choix) => {
     .eq('id', dilemmeId);
 };
 
-// Annuler un vote
 export const annulerVote = async (dilemmeId) => {
-  const userId = getUserId();
+  const userId = await getUserId();
+
   await supabase
     .from('votes')
     .delete()
     .eq('dilemme_id', dilemmeId)
     .eq('user_id', userId);
+
+  // Recalculer les compteurs
+  const { data: allVotes } = await supabase
+    .from('votes')
+    .select('choix')
+    .eq('dilemme_id', dilemmeId);
+
+  const votesA = (allVotes || []).filter(v => v.choix === 'A').length;
+  const votesB = (allVotes || []).filter(v => v.choix === 'B').length;
+
+  await supabase
+    .from('dilemmes')
+    .update({ votes_a: votesA, votes_b: votesB })
+    .eq('id', dilemmeId);
 };
 
-// Récupérer les votes de l'utilisateur
 export const getMesVotes = async () => {
-  const userId = getUserId();
+  const userId = await getUserId();
   const { data, error } = await supabase
     .from('votes')
     .select('dilemme_id, choix')

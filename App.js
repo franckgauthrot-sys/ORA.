@@ -27,13 +27,47 @@ export default function App() {
   const [user, setUser]           = useState(null);
 
   useEffect(() => {
+    // Vérifier session existante + écouter changements
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setUser(session.user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setUser(session.user);
+      } else {
+        setUser(null);
+      }
+    });
+
     chargerDilemmes();
     chargerMesVotes();
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setNotif('12 personnes ont voté sur ton dilemme 🔥'), 5000);
     return () => clearTimeout(t);
+  }, []);
+
+  // Temps réel — écouter les nouveaux votes
+  useEffect(() => {
+    const channel = supabase
+      .channel('votes-realtime')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'dilemmes' },
+        (payload) => {
+          const d = payload.new;
+          setFeed(f => f.map(item => item.id === d.id ? {
+            ...item,
+            votesA: d.votes_a,
+            votesB: d.votes_b,
+          } : item));
+        }
+      )
+      .subscribe();
+    return () => supabase.removeChannel(channel);
   }, []);
 
   const chargerDilemmes = async () => {
