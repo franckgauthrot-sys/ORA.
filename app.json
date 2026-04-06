@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ora2",
+    "name": "Ora.",
     "slug": "ora2",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,23 +11,25 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#f2f0eb"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ora.dilemmes"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#f2f0eb"
       },
+      "package": "com.ora.dilemmes",
       "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-notifications"
     ]
   }
 }
