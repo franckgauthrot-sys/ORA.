@@ -5,6 +5,7 @@ import ProfilScreen from './ProfilScreen';
 import { useState, useEffect } from 'react';
 import { getDilemmes, postDilemme, voterPour, annulerVote, getMesVotes } from './api';
 import AuthScreen from './AuthScreen';
+import { supabase } from './supabase';
 
 const P = {
   bg:        '#f2f0eb',
@@ -23,19 +24,22 @@ export default function App() {
   const [notif, setNotif]         = useState(null);
   const [fomoSeen, setFomoSeen]   = useState(false);
   const [loading, setLoading]     = useState(true);
-  const [user, setUser] = useState(null);
+  const [user, setUser]           = useState(null);
 
-  // Charger les dilemmes depuis Supabase
   useEffect(() => {
     chargerDilemmes();
     chargerMesVotes();
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => setNotif('12 personnes ont voté sur ton dilemme 🔥'), 5000);
+    return () => clearTimeout(t);
   }, []);
 
   const chargerDilemmes = async () => {
     try {
       const data = await getDilemmes();
       if (data && data.length > 0) {
-        // Convertir le format Supabase vers le format de l'app
         const formatted = data.map(d => ({
           id: d.id,
           auteur: d.auteur,
@@ -49,7 +53,6 @@ export default function App() {
         }));
         setFeed(formatted);
       } else {
-        // Pas de données en base — utiliser les données initiales
         setFeed(DILEMMES_INIT);
       }
     } catch (e) {
@@ -71,13 +74,7 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    const t = setTimeout(() => setNotif('12 personnes ont voté sur ton dilemme 🔥'), 5000);
-    return () => clearTimeout(t);
-  }, []);
-
   const handleVote = async (id, choix) => {
-    // Mise à jour optimiste — l'UI se met à jour immédiatement
     const prev = userVotes[id];
     if (choix === null) {
       setUserVotes(v => { const n = { ...v }; delete n[id]; return n; });
@@ -109,14 +106,12 @@ export default function App() {
         optionA: newPost.option_a,
         optionB: newPost.option_b,
         categories: newPost.categories || [],
-        votesA: 0,
-        votesB: 0,
+        votesA: 0, votesB: 0,
       };
       setFeed(f => [formatted, ...f]);
       setMyPosts(p => [formatted, ...p]);
     } catch (e) {
       console.log('Erreur post:', e);
-      // Fallback local
       const newPost = {
         id: Date.now().toString(),
         auteur: 'Toi',
@@ -145,9 +140,11 @@ export default function App() {
       </View>
     );
   }
-if (!user) {
+
+  if (!user) {
     return <AuthScreen onAuth={setUser} />;
   }
+
   return (
     <View style={styles.container}>
       {notif && (
