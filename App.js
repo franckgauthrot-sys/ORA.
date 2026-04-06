@@ -7,6 +7,7 @@ import { getDilemmes, postDilemme, voterPour, annulerVote, getMesVotes } from '.
 import AuthScreen from './AuthScreen';
 import { supabase } from './supabase';
 import PseudoScreen from './PseudoScreen';
+import { registerForPushNotifications, setupNotificationListeners } from './notifications';
 
 const P = {
   bg:        '#f2f0eb',
@@ -86,6 +87,15 @@ export default function App() {
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, []);
+  useEffect(() => {
+    if (user) {
+      registerForPushNotifications(user.id);
+      const cleanup = setupNotificationListeners((notif) => {
+        setNotif(notif.request.content.body);
+      });
+      return cleanup;
+    }
+  }, [user]);
 
   const chargerDilemmes = async () => {
     try {
