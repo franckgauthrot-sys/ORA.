@@ -25,19 +25,15 @@ export default function App() {
   const [fomoSeen, setFomoSeen]   = useState(false);
   const [loading, setLoading]     = useState(true);
   const [user, setUser]           = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    // Vérifier session existante + écouter changements
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setUser(session.user);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setUser(session.user);
-      } else {
-        setUser(null);
-      }
+      if (session) { setUser(session.user); } else { setUser(null); }
     });
 
     chargerDilemmes();
@@ -51,7 +47,6 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
-  // Temps réel — écouter les nouveaux votes
   useEffect(() => {
     const channel = supabase
       .channel('votes-realtime')
@@ -60,9 +55,7 @@ export default function App() {
         (payload) => {
           const d = payload.new;
           setFeed(f => f.map(item => item.id === d.id ? {
-            ...item,
-            votesA: d.votes_a,
-            votesB: d.votes_b,
+            ...item, votesA: d.votes_a, votesB: d.votes_b,
           } : item));
         }
       )
@@ -106,6 +99,13 @@ export default function App() {
     } catch (e) {
       console.log('Erreur votes:', e);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await chargerDilemmes();
+    await chargerMesVotes();
+    setRefreshing(false);
   };
 
   const handleVote = async (id, choix) => {
@@ -199,6 +199,8 @@ export default function App() {
           onVote={handleVote}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
         />
       )}
       {page === 'post' && <PostScreen onPost={handlePost} />}

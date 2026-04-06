@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Share } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Share, RefreshControl } from 'react-native';
 
 const P = {
   bg:         '#f2f0eb',
@@ -78,9 +78,7 @@ function DilemmeCard({ d, onVote, userVotes }) {
   };
 
   useEffect(() => {
-    if (voted && revealed) {
-      animateBars(pctA, pctB);
-    }
+    if (voted && revealed) animateBars(pctA, pctB);
   }, [voted, pctA, pctB, revealed]);
 
   useEffect(() => {
@@ -235,7 +233,7 @@ function DilemmeCard({ d, onVote, userVotes }) {
   );
 }
 
-export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onTabChange }) {
+export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onTabChange, onRefresh, refreshing }) {
   let displayed;
   if (activeTab === 'trending') {
     displayed = [...dilemmes].sort((a, b) => (b.votesA + b.votesB) - (a.votesA + a.votesB));
@@ -276,7 +274,15 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
         })}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={styles.feed}>
+      <ScrollView
+        contentContainerStyle={styles.feed}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing || false}
+            onRefresh={onRefresh}
+            tintColor="#e8943a"
+          />
+        }>
         {displayed.map(d => (
           <DilemmeCard key={d.id} d={d} onVote={onVote} userVotes={userVotes} />
         ))}
