@@ -27,8 +27,8 @@ const BADGES = [
 
 function MiniCard({ d, userVotes, onVote }) {
   const voted = userVotes[d.id];
-  const total = d.votesA + d.votesB + (voted ? 1 : 0);
-  const pctA  = total === 0 ? 50 : Math.round(((d.votesA + (voted === 'A' ? 1 : 0)) / total) * 100);
+  const total = d.votesA + d.votesB;
+  const pctA  = total ? Math.round((d.votesA / total) * 100) : 50;
   const pctB  = 100 - pctA;
   const barA  = useRef(new Animated.Value(0)).current;
   const barB  = useRef(new Animated.Value(0)).current;
@@ -44,7 +44,6 @@ function MiniCard({ d, userVotes, onVote }) {
     <View style={styles.card}>
       <Text style={styles.cardAuteur}>{d.auteur}</Text>
       <Text style={styles.cardQuestion}>"{d.question}"</Text>
-
       {[
         { label: d.optionA, key: 'A', pct: pctA, color: P.rose, deep: P.roseDeep, track: P.roseLight, bar: barA },
         { label: d.optionB, key: 'B', pct: pctB, color: P.teal, deep: P.tealDeep, track: P.tealLight, bar: barB },
@@ -66,17 +65,11 @@ function MiniCard({ d, userVotes, onVote }) {
           </View>
         </View>
       ))}
-
       <Text style={styles.totalVotes}>{total.toLocaleString()} votes</Text>
-
-      {/* Changer / Annuler */}
       <View style={styles.changeRow}>
         {['A', 'B'].map(key => (
           <TouchableOpacity key={key} onPress={() => { if (voted !== key) onVote(d.id, key); }}
-            style={[styles.changeBtn, {
-              borderColor: voted === key ? (key === 'A' ? P.roseDeep : P.tealDeep) : P.cardBorder,
-              backgroundColor: voted === key ? (key === 'A' ? P.roseLight : P.tealLight) : 'transparent'
-            }]}>
+            style={[styles.changeBtn, { borderColor: voted === key ? (key === 'A' ? P.roseDeep : P.tealDeep) : P.cardBorder, backgroundColor: voted === key ? (key === 'A' ? P.roseLight : P.tealLight) : 'transparent' }]}>
             <Text style={{ fontSize: 11, fontWeight: '800', color: voted === key ? (key === 'A' ? P.roseDeep : P.tealDeep) : P.textLight }}>
               {voted === key ? '✓ ' : ''}{key}
             </Text>
@@ -90,83 +83,68 @@ function MiniCard({ d, userVotes, onVote }) {
   );
 }
 
-export default function ProfilScreen({ myPosts, votedCount, streak, userVotes, feed, onVote }) {
+export default function ProfilScreen({ myPosts, votedCount, streak, userVotes, feed, onVote, user, onSignOut, pseudo }) {
   const [tab, setTab] = useState('votes');
-
   const votedDilemmes = feed ? feed.filter(d => userVotes[d.id]) : [];
+  const displayName = pseudo || user?.email?.split('@')[0] || 'Toi';
+  const initiale = displayName[0].toUpperCase();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Logo */}
       <Text style={styles.logo}>ORA<Text style={{ color: P.teal }}>.</Text></Text>
 
-      {/* Avatar + stats */}
       <View style={styles.profileRow}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>T</Text>
+          <Text style={styles.avatarText}>{initiale}</Text>
         </View>
-        <View>
-          <Text style={styles.name}>Toi</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.name}>{displayName}</Text>
+          <Text style={styles.email}>{user?.email}</Text>
           <Text style={styles.stats}>
             {myPosts.length} posté{myPosts.length > 1 ? 's' : ''} · {votedCount} vote{votedCount > 1 ? 's' : ''} · 🔥 {streak}j
           </Text>
         </View>
       </View>
 
-      {/* Badges */}
       <View style={styles.badges}>
         {BADGES.map((b, i) => {
           const earned = b.condition(votedCount, myPosts.length);
           return (
-            <View key={i} style={[styles.badge, {
-              backgroundColor: earned ? P.roseLight : P.bg,
-              borderColor: earned ? P.rose : P.cardBorder,
-              opacity: earned ? 1 : 0.4
-            }]}>
+            <View key={i} style={[styles.badge, { backgroundColor: earned ? P.roseLight : P.bg, borderColor: earned ? P.rose : P.cardBorder, opacity: earned ? 1 : 0.4 }]}>
               <Text style={styles.badgeIcon}>{b.icon}</Text>
-              <Text style={[styles.badgeLabel, { color: earned ? P.roseDeep : P.textLight }]}>
-                {b.label.toUpperCase()}
-              </Text>
+              <Text style={[styles.badgeLabel, { color: earned ? P.roseDeep : P.textLight }]}>{b.label.toUpperCase()}</Text>
             </View>
           );
         })}
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabs}>
         {[['votes', 'Mes votes'], ['posts', 'Mes dilemmes']].map(([id, label]) => (
           <TouchableOpacity key={id} onPress={() => setTab(id)}
-            style={[styles.tab, {
-              backgroundColor: tab === id ? P.text : P.card,
-              borderColor: tab === id ? 'transparent' : P.cardBorder
-            }]}>
-            <Text style={[styles.tabText, { color: tab === id ? '#fff' : P.textMid }]}>
-              {label.toUpperCase()}
-            </Text>
+            style={[styles.tab, { backgroundColor: tab === id ? P.text : P.card, borderColor: tab === id ? 'transparent' : P.cardBorder }]}>
+            <Text style={[styles.tabText, { color: tab === id ? '#fff' : P.textMid }]}>{label.toUpperCase()}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Mes votes */}
       {tab === 'votes' && (
         votedDilemmes.length === 0
           ? <Text style={styles.empty}>Tu n'as pas encore voté 🌵</Text>
-          : votedDilemmes.map(d => (
-            <MiniCard key={d.id} d={d} userVotes={userVotes} onVote={onVote} />
-          ))
+          : votedDilemmes.map(d => <MiniCard key={d.id} d={d} userVotes={userVotes} onVote={onVote} />)
       )}
 
-     {/* Mes dilemmes */}
       {tab === 'posts' && (
         myPosts.length === 0
           ? <Text style={styles.empty}>Tu n'as pas encore posté 🌵</Text>
-          : myPosts.map((d, i) => {
-              const live = feed ? feed.find(x => x.id === d.id) || d : d;
-              return (
-                <MiniCard key={i} d={live} userVotes={userVotes} onVote={onVote} />
-              );
+          : myPosts.map(d => {
+              const live = feed?.find(x => x.id === d.id) || d;
+              return <MiniCard key={d.id} d={live} userVotes={userVotes} onVote={onVote} />;
             })
       )}
+
+      <TouchableOpacity onPress={onSignOut} style={styles.signOutBtn}>
+        <Text style={styles.signOutText}>Se déconnecter</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -179,7 +157,8 @@ const styles = StyleSheet.create({
   avatar:       { width: 56, height: 56, borderRadius: 28, backgroundColor: P.teal, alignItems: 'center', justifyContent: 'center' },
   avatarText:   { fontSize: 22, fontWeight: '900', color: '#fff' },
   name:         { fontSize: 18, fontWeight: '800', color: P.text },
-  stats:        { fontSize: 12, color: P.textLight, marginTop: 2 },
+  email:        { fontSize: 11, color: P.textLight, marginTop: 2 },
+  stats:        { fontSize: 12, color: P.textLight, marginTop: 4 },
   badges:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
   badge:        { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 8, borderWidth: 1.5 },
   badgeIcon:    { fontSize: 13 },
@@ -202,6 +181,6 @@ const styles = StyleSheet.create({
   changeRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: P.cardBorder },
   changeBtn:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 2 },
   annuler:      { fontSize: 11, color: P.textLight, fontWeight: '600' },
-  optionPill:   { flex: 1, padding: 10, borderRadius: 10, alignItems: 'center' },
-  optionPillText:{ fontSize: 12, fontWeight: '800' },
+  signOutBtn:   { marginTop: 32, padding: 16, borderRadius: 14, borderWidth: 1.5, borderColor: P.cardBorder, alignItems: 'center' },
+  signOutText:  { fontSize: 14, fontWeight: '700', color: P.textLight },
 });

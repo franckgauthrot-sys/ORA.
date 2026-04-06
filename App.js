@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { getDilemmes, postDilemme, voterPour, annulerVote, getMesVotes } from './api';
 import AuthScreen from './AuthScreen';
 import { supabase } from './supabase';
+import PseudoScreen from './PseudoScreen';
 
 const P = {
   bg:        '#f2f0eb',
@@ -16,30 +17,53 @@ const P = {
 };
 
 export default function App() {
-  const [page, setPage]           = useState('feed');
-  const [feed, setFeed]           = useState([]);
-  const [userVotes, setUserVotes] = useState({});
-  const [myPosts, setMyPosts]     = useState([]);
-  const [activeTab, setActiveTab] = useState('trending');
-  const [notif, setNotif]         = useState(null);
-  const [fomoSeen, setFomoSeen]   = useState(false);
-  const [loading, setLoading]     = useState(true);
-  const [user, setUser]           = useState(null);
+  const [page, setPage]             = useState('feed');
+  const [feed, setFeed]             = useState([]);
+  const [userVotes, setUserVotes]   = useState({});
+  const [myPosts, setMyPosts]       = useState([]);
+  const [activeTab, setActiveTab]   = useState('trending');
+  const [notif, setNotif]           = useState(null);
+  const [fomoSeen, setFomoSeen]     = useState(false);
+  const [loading, setLoading]       = useState(true);
+  const [user, setUser]             = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [pseudo, setPseudo]         = useState(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setUser(session.user);
+    let subscription;
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        setUser(session.user);
+        const { data } = await supabase
+          .from('profiles')
+          .select('pseudo')
+          .eq('id', session.user.id)
+          .single();
+        if (data?.pseudo) setPseudo(data.pseudo);
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) { setUser(session.user); } else { setUser(null); }
+    const { data: { subscription: sub } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        setUser(session.user);
+        const { data } = await supabase
+          .from('profiles')
+          .select('pseudo')
+          .eq('id', session.user.id)
+          .single();
+        if (data?.pseudo) setPseudo(data.pseudo);
+      } else {
+        setUser(null);
+        setPseudo(null);
+      }
     });
+    subscription = sub;
 
     chargerDilemmes();
     chargerMesVotes();
 
-    return () => subscription.unsubscribe();
+    return () => subscription?.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -108,6 +132,14 @@ export default function App() {
     setRefreshing(false);
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setPseudo(null);
+    setUserVotes({});
+    setMyPosts([]);
+  };
+
   const handleVote = async (id, choix) => {
     const prev = userVotes[id];
     if (choix === null) {
@@ -130,11 +162,12 @@ export default function App() {
   };
 
   const handlePost = async ({ question, optionA, optionB, categories }) => {
+    const auteur = pseudo || user?.email?.split('@')[0] || 'Anonyme';
     try {
-      const newPost = await postDilemme({ question, optionA, optionB, categories });
+      const newPost = await postDilemme({ question, optionA, optionB, categories, userId: user?.id, auteur });
       const formatted = {
         id: newPost.id,
-        auteur: 'Toi',
+        auteur,
         tempsPoste: "À l'instant",
         question: newPost.question,
         optionA: newPost.option_a,
@@ -148,7 +181,7 @@ export default function App() {
       console.log('Erreur post:', e);
       const newPost = {
         id: Date.now().toString(),
-        auteur: 'Toi',
+        auteur,
         tempsPoste: "À l'instant",
         question, optionA, optionB,
         categories: categories.length ? categories : [],
@@ -177,6 +210,10 @@ export default function App() {
 
   if (!user) {
     return <AuthScreen onAuth={setUser} />;
+  }
+
+  if (!pseudo) {
+    return <PseudoScreen user={user} onDone={setPseudo} />;
   }
 
   return (
@@ -212,6 +249,9 @@ export default function App() {
           userVotes={userVotes}
           feed={feed}
           onVote={handleVote}
+          user={user}
+          onSignOut={handleSignOut}
+          pseudo={pseudo}
         />
       )}
 
@@ -245,7 +285,7 @@ const styles = StyleSheet.create({
   navLabel:    { fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
   streakDot:   { position: 'absolute', top: -4, right: -10, backgroundColor: '#e8a0a8', borderRadius: 8, width: 15, height: 15, alignItems: 'center', justifyContent: 'center' },
   streakText:  { fontSize: 8, fontWeight: '800', color: '#fff' },
-  toast:       { position: 'absolute', top: 54, right: 16, backgroundColor: '#1a1714', borderRadius: 14, padding: 12, zIndex: 999, maxWidth: 220 },
+  toast:       { position: 'absolute', top: 54, right: 16, backgroundColor: '#1a1714', borderRadius: 14, padding: 12, zIndex: 999, maxWidth: 200, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 8 },
   toastText:   { color: '#fff', fontSize: 13, fontWeight: '700' },
   fomo:        { position: 'absolute', top: 54, right: 16, backgroundColor: '#e8a0a8', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, zIndex: 998 },
   fomoText:    { color: '#fff', fontSize: 12, fontWeight: '800' },

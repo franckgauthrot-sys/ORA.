@@ -24,15 +24,16 @@ export const getDilemmes = async () => {
   return data;
 };
 
-export const postDilemme = async ({ question, optionA, optionB, categories }) => {
+export const postDilemme = async ({ question, optionA, optionB, categories, userId, auteur }) => {
   const { data, error } = await supabase
     .from('dilemmes')
     .insert({
-      auteur: 'Anonyme',
+      auteur: auteur || 'Anonyme',
       question,
       option_a: optionA,
       option_b: optionB,
       categories,
+      user_id: userId,
     })
     .select()
     .single();
@@ -97,6 +98,37 @@ export const getMesVotes = async () => {
     .from('votes')
     .select('dilemme_id, choix')
     .eq('user_id', userId);
+  if (error) throw error;
+  return data;
+};
+
+// Récupérer le profil de l'utilisateur
+export const getProfil = async (userId) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// Mettre à jour le pseudo
+export const updatePseudo = async (userId, pseudo) => {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ pseudo })
+    .eq('id', userId);
+  if (error) throw error;
+};
+
+// Récupérer les dilemmes postés par l'utilisateur
+export const getMesDilemmes = async (userId) => {
+  const { data, error } = await supabase
+    .from('dilemmes')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
 };
