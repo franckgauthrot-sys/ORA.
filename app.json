@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Ora.",
+    "name": "ORA",
     "slug": "ora2",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.ora.dilemmes"
+      "bundleIdentifier": "com.ora.dilemmes",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -30,6 +33,11 @@
     },
     "plugins": [
       "expo-notifications"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "96eacbe5-9db9-40df-9de4-47236a7b6cb4"
+      }
+    }
   }
 }
