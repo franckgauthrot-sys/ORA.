@@ -22,7 +22,18 @@ const CAT_STYLE = {
   social:   { bg: '#cff0ea', text: '#2a8a7a' },
   argent:   { bg: '#eef4c0', text: '#6a8010' },
   famille:  { bg: '#e0daf4', text: '#5848a8' },
+  fun:      { bg: '#fde8f0', text: '#c0306a' },
+  parfait:  { bg: '#fff0d0', text: '#c07800' },
+  achats:   { bg: '#e8f4e8', text: '#2a7a2a' },
+  maison:   { bg: '#f4e8d0', text: '#8a5820' },
+  voyage:   { bg: '#d0eef4', text: '#1878a0' },
+  sport:    { bg: '#e8f0d0', text: '#4a7820' },
 };
+
+const SPECIAL_CATS = [
+  { id: 'fun',     label: '🎮 Tu préfères' },
+  { id: 'parfait', label: '🎯 Dilemme Parfait' },
+];
 
 const CATEGORIES = [
   { id: 'amour',    label: 'Amour' },
@@ -30,6 +41,10 @@ const CATEGORIES = [
   { id: 'social',   label: 'Vie sociale' },
   { id: 'argent',   label: 'Argent' },
   { id: 'famille',  label: 'Famille' },
+  { id: 'achats',   label: 'Achats' },
+  { id: 'maison',   label: 'Maison' },
+  { id: 'voyage',   label: 'Voyage' },
+  { id: 'sport',    label: 'Sport' },
 ];
 
 export default function PostScreen({ onPost }) {
@@ -37,9 +52,25 @@ export default function PostScreen({ onPost }) {
   const [optA, setOptA]         = useState('');
   const [optB, setOptB]         = useState('');
   const [cats, setCats]         = useState([]);
-  const [phase, setPhase]       = useState('form'); // form | sending | done
+  const [phase, setPhase]       = useState('form');
 
-  const toggleCat = (id) => setCats(p => p.includes(id) ? p.filter(c => c !== id) : [...p, id]);
+const toggleCat = (id) => {
+  const isSpecial = id === 'fun' || id === 'parfait';
+  const hasSpecial = cats.includes('fun') || cats.includes('parfait');
+  
+  if (isSpecial) {
+    // Si on clique sur une spéciale — elle remplace tout
+    if (cats.includes(id)) {
+      setCats([]); // décocher
+    } else {
+      setCats([id]); // remplacer tout par cette spéciale
+    }
+  } else {
+    // Si on clique sur une normale — impossible si une spéciale est cochée
+    if (hasSpecial) return;
+    setCats(p => p.includes(id) ? p.filter(c => c !== id) : [...p, id]);
+  }
+};
   const canSubmit = question.trim() && optA.trim() && optB.trim();
 
   const handleSubmit = () => {
@@ -80,7 +111,6 @@ export default function PostScreen({ onPost }) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Ton dilemme</Text>
 
-      {/* Hint */}
       <View style={styles.hint}>
         <Text style={styles.hintText}>
           💡 Donne assez de contexte pour que les autres comprennent.{'\n'}
@@ -88,7 +118,22 @@ export default function PostScreen({ onPost }) {
         </Text>
       </View>
 
-      {/* Catégories */}
+      {/* Catégories spéciales — ligne 1 */}
+      <Text style={styles.label}>TYPE</Text>
+      <View style={styles.cats}>
+        {SPECIAL_CATS.map(cat => {
+          const active = cats.includes(cat.id);
+          const s = CAT_STYLE[cat.id];
+          return (
+            <TouchableOpacity key={cat.id} onPress={() => toggleCat(cat.id)}
+              style={[styles.catBtn, { backgroundColor: active ? s.bg : P.card, borderColor: active ? s.text : P.cardBorder }]}>
+              <Text style={[styles.catText, { color: active ? s.text : P.textMid }]}>{cat.label.toUpperCase()}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Catégories normales — ligne 2 */}
       <Text style={styles.label}>CATÉGORIES</Text>
       <View style={styles.cats}>
         {CATEGORIES.map(cat => {
@@ -103,7 +148,6 @@ export default function PostScreen({ onPost }) {
         })}
       </View>
 
-      {/* Champs */}
       <Text style={styles.label}>LE DILEMME</Text>
       <TextInput
         style={styles.input}
@@ -133,7 +177,6 @@ export default function PostScreen({ onPost }) {
         onChangeText={setOptB}
       />
 
-      {/* Bouton */}
       <TouchableOpacity
         style={[styles.publishBtn, { backgroundColor: canSubmit ? P.teal : P.cardBorder }]}
         onPress={handleSubmit}

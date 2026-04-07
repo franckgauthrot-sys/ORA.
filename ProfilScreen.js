@@ -83,7 +83,7 @@ function MiniCard({ d, userVotes, onVote }) {
   );
 }
 
-export default function ProfilScreen({ myPosts, votedCount, streak, userVotes, feed, onVote, user, onSignOut, pseudo }) {
+export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onVote, user, onSignOut, pseudo }) {
   const [tab, setTab] = useState('votes');
   const votedDilemmes = feed ? feed.filter(d => userVotes[d.id]) : [];
   const displayName = pseudo || user?.email?.split('@')[0] || 'Toi';
@@ -101,7 +101,7 @@ export default function ProfilScreen({ myPosts, votedCount, streak, userVotes, f
           <Text style={styles.name}>{displayName}</Text>
           <Text style={styles.email}>{user?.email}</Text>
           <Text style={styles.stats}>
-            {myPosts.length} posté{myPosts.length > 1 ? 's' : ''} · {votedCount} vote{votedCount > 1 ? 's' : ''} · 🔥 {streak}j
+            {myPosts.length} posté{myPosts.length > 1 ? 's' : ''} · {votedCount} vote{votedCount > 1 ? 's' : ''}
           </Text>
         </View>
       </View>

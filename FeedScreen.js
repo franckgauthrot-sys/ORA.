@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Share, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Share, RefreshControl, Alert } from 'react-native';
 
 const P = {
   bg:         '#f2f0eb',
@@ -24,6 +24,12 @@ const CAT_STYLE = {
   social:   { bg: '#cff0ea', text: '#2a8a7a' },
   argent:   { bg: '#eef4c0', text: '#6a8010' },
   famille:  { bg: '#e0daf4', text: '#5848a8' },
+  fun:      { bg: '#fde8f0', text: '#c0306a' },
+  parfait:  { bg: '#fff0d0', text: '#c07800' },
+  achats:   { bg: '#e8f4e8', text: '#2a7a2a' },
+  maison:   { bg: '#f4e8d0', text: '#8a5820' },
+  voyage:   { bg: '#d0eef4', text: '#1878a0' },
+  sport:    { bg: '#e8f0d0', text: '#4a7820' },
 };
 
 const CATEGORIES = [
@@ -32,6 +38,10 @@ const CATEGORIES = [
   { id: 'social',   label: 'Vie sociale' },
   { id: 'argent',   label: 'Argent' },
   { id: 'famille',  label: 'Famille' },
+  { id: 'achats',   label: 'Achats' },
+  { id: 'maison',   label: 'Maison' },
+  { id: 'voyage',   label: 'Voyage' },
+  { id: 'sport',    label: 'Sport' },
 ];
 
 const DILEMMES_INIT = [
@@ -44,7 +54,7 @@ const DILEMMES_INIT = [
 
 function Badge({ catId }) {
   const s = CAT_STYLE[catId];
-  const cat = CATEGORIES.find(c => c.id === catId);
+  const cat = [...CATEGORIES, { id: 'fun', label: 'Tu préfères' }, { id: 'parfait', label: 'Dilemme Parfait' }].find(c => c.id === catId);
   if (!cat || !s) return null;
   return (
     <View style={[styles.badge, { backgroundColor: s.bg }]}>
@@ -67,6 +77,12 @@ function DilemmeCard({ d, onVote, userVotes }) {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
+
+  const isParfait = d.categories.includes('parfait');
+
+  // Score de perfection — plus proche de 0, plus c'est parfait
+  const perfScore = Math.abs(pctA - 50);
+  const perfLabel = perfScore === 0 ? '🎯 PARFAIT !' : perfScore <= 5 ? '🔥 Très proche !' : perfScore <= 15 ? '👌 Pas mal !' : '💪 Continue !';
 
   const animateBars = (pA, pB) => {
     barA.setValue(0);
@@ -128,6 +144,19 @@ function DilemmeCard({ d, onVote, userVotes }) {
     });
   };
 
+  const handleSignaler = () => {
+    Alert.alert(
+      'Signaler ce dilemme',
+      'Pourquoi tu signales ce dilemme ?',
+      [
+        { text: 'Contenu inapproprié', onPress: () => Alert.alert('Merci', 'Ton signalement a été envoyé.') },
+        { text: 'Spam', onPress: () => Alert.alert('Merci', 'Ton signalement a été envoyé.') },
+        { text: 'Autre', onPress: () => Alert.alert('Merci', 'Ton signalement a été envoyé.') },
+        { text: 'Annuler', style: 'cancel' },
+      ]
+    );
+  };
+
   const isMajority = voted && (voted === 'A' ? pctA : pctB) > 50;
 
   return (
@@ -160,6 +189,12 @@ function DilemmeCard({ d, onVote, userVotes }) {
               <Text style={[styles.btnText, { color: P.tealDeep }]}>{d.optionB}</Text>
             </TouchableOpacity>
           </View>
+          <View style={styles.shareBtnRow}>
+            <View />
+            <TouchableOpacity onPress={handleSignaler} style={styles.signalerBtn}>
+              <Text style={styles.signalerText}>⚑ Signaler</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : revealing ? (
         <View style={styles.suspense}>
@@ -172,44 +207,85 @@ function DilemmeCard({ d, onVote, userVotes }) {
         </View>
       ) : (
         <View>
-          {[
-            { label: d.optionA, key: 'A', pct: pctA, color: P.rose, deep: P.roseDeep, track: P.roseLight, bar: barA },
-            { label: d.optionB, key: 'B', pct: pctB, color: P.teal, deep: P.tealDeep, track: P.tealLight, bar: barB },
-          ].map(opt => (
-            <View key={opt.key} style={{ marginBottom: 12 }}>
-              <View style={styles.barRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                  {voted === opt.key && (
-                    <View style={[styles.myVoteBadge, { backgroundColor: opt.color }]}>
-                      <Text style={styles.myVoteText}>✓ Mon vote</Text>
-                    </View>
-                  )}
-                  <Text style={[styles.barLabel, { color: opt.deep }]} numberOfLines={1}>{opt.label}</Text>
+          {isParfait ? (
+            /* Barre 50/50 spéciale Dilemme Parfait */
+            <View style={{ marginBottom: 16, marginTop: 8 }}>
+              <View style={styles.splitBarContainer}>
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <Animated.View style={[styles.splitBarA, {
+                    width: barA.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] })
+                  }]} />
                 </View>
-                <Text style={[styles.barPct, { color: opt.deep }]}>{opt.pct}%</Text>
+                <View style={styles.splitBarCenter} />
+                <View style={{ flex: 1, alignItems: 'flex-start' }}>
+                  <Animated.View style={[styles.splitBarB, {
+                    width: barB.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] })
+                  }]} />
+                </View>
               </View>
-              <View style={[styles.track, { backgroundColor: opt.track }]}>
-                <Animated.View style={[styles.bar, { backgroundColor: opt.color, width: opt.bar.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }]} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {voted === 'A' && <View style={[styles.myVoteBadge, { backgroundColor: P.rose }]}><Text style={styles.myVoteText}>✓</Text></View>}
+                  <Text style={[styles.barLabel, { color: P.roseDeep }]} numberOfLines={1}>{d.optionA}</Text>
+                </View>
+                <Text style={[styles.barPct, { color: P.roseDeep }]}>{pctA}%</Text>
               </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {voted === 'B' && <View style={[styles.myVoteBadge, { backgroundColor: P.teal }]}><Text style={styles.myVoteText}>✓</Text></View>}
+                  <Text style={[styles.barLabel, { color: P.tealDeep }]} numberOfLines={1}>{d.optionB}</Text>
+                </View>
+                <Text style={[styles.barPct, { color: P.tealDeep }]}>{pctB}%</Text>
+              </View>
+              <Text style={[styles.totalVotes, { marginTop: 8 }]}>{total.toLocaleString()} votes</Text>
+              <Text style={[styles.majorityMsg, { color: '#c07800', marginTop: 4 }]}>{perfLabel}</Text>
             </View>
-          ))}
+          ) : (
+            /* Barres normales */
+            <>
+              {[
+                { label: d.optionA, key: 'A', pct: pctA, color: P.rose, deep: P.roseDeep, track: P.roseLight, bar: barA },
+                { label: d.optionB, key: 'B', pct: pctB, color: P.teal, deep: P.tealDeep, track: P.tealLight, bar: barB },
+              ].map(opt => (
+                <View key={opt.key} style={{ marginBottom: 12 }}>
+                  <View style={styles.barRow}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                      {voted === opt.key && (
+                        <View style={[styles.myVoteBadge, { backgroundColor: opt.color }]}>
+                          <Text style={styles.myVoteText}>✓ Mon vote</Text>
+                        </View>
+                      )}
+                      <Text style={[styles.barLabel, { color: opt.deep }]} numberOfLines={1}>{opt.label}</Text>
+                    </View>
+                    <Text style={[styles.barPct, { color: opt.deep }]}>{opt.pct}%</Text>
+                  </View>
+                  <View style={[styles.track, { backgroundColor: opt.track }]}>
+                    <Animated.View style={[styles.bar, { backgroundColor: opt.color, width: opt.bar.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }]} />
+                  </View>
+                </View>
+              ))}
+              <View style={{ alignItems: 'center', marginTop: 8 }}>
+                {showPlus && (
+                  <Animated.Text style={{ fontSize: 16, fontWeight: '900', color: P.rose, opacity: plusAnim, transform: [{ translateY: plusAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) }] }}>
+                    +1
+                  </Animated.Text>
+                )}
+                <Text style={styles.totalVotes}>{total.toLocaleString()} votes</Text>
+              </View>
+              <Text style={[styles.majorityMsg, { color: isMajority ? P.sage : P.palmPink }]}>
+                {isMajority ? 'Tu es dans la majorité 🙌' : 'Tu es dans la minorité 🤔'}
+              </Text>
+            </>
+          )}
 
-          <View style={{ alignItems: 'center', marginTop: 8 }}>
-            {showPlus && (
-              <Animated.Text style={{ fontSize: 16, fontWeight: '900', color: P.rose, opacity: plusAnim, transform: [{ translateY: plusAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) }] }}>
-                +1
-              </Animated.Text>
-            )}
-            <Text style={styles.totalVotes}>{total.toLocaleString()} votes</Text>
+          <View style={styles.shareBtnRow}>
+            <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
+              <Text style={styles.shareText}>Partager →</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleSignaler} style={styles.signalerBtn}>
+              <Text style={styles.signalerText}>⚑ Signaler</Text>
+            </TouchableOpacity>
           </View>
-
-          <Text style={[styles.majorityMsg, { color: isMajority ? P.sage : P.palmPink }]}>
-            {isMajority ? 'Tu es dans la majorité 🙌' : 'Tu es dans la minorité 🤔'}
-          </Text>
-
-          <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
-            <Text style={styles.shareText}>Partager →</Text>
-          </TouchableOpacity>
 
           <View style={styles.changeRow}>
             {['A', 'B'].map(key => (
@@ -237,10 +313,12 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
   let displayed;
   if (activeTab === 'trending') {
     displayed = [...dilemmes].sort((a, b) => (b.votesA + b.votesB) - (a.votesA + a.votesB));
-  } else if (activeTab === 'all') {
-    displayed = [...dilemmes].sort((a, b) => b.id - a.id);
+  } else if (activeTab === 'fun' || activeTab === 'parfait') {
+    displayed = dilemmes.filter(d => d.categories.includes(activeTab));
+  } else if (activeTab === '') {
+    displayed = [...dilemmes];
   } else {
-    displayed = dilemmes.filter(d => d.categories.includes(activeTab)).sort((a, b) => b.id - a.id);
+    displayed = dilemmes.filter(d => d.categories.includes(activeTab));
   }
 
   return (
@@ -250,10 +328,14 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
       </View>
 
       <View style={styles.fixedTabs}>
-        {[{ id: 'trending', label: 'Trending' }, { id: 'all', label: 'Tous' }].map(tab => {
+        {[
+          { id: 'trending', label: '🔥 Trending' },
+          { id: 'fun',      label: '🎮 Tu préfères' },
+          { id: 'parfait',  label: '🎯 Dilemme Parfait' },
+        ].map(tab => {
           const active = activeTab === tab.id;
           return (
-            <TouchableOpacity key={tab.id} onPress={() => onTabChange(tab.id)}
+            <TouchableOpacity key={tab.id} onPress={() => onTabChange(activeTab === tab.id ? '' : tab.id)}
               style={[styles.tab, { backgroundColor: active ? (tab.id === 'trending' ? '#e8a0a8' : '#1a1714') : '#ffffff', borderColor: active ? 'transparent' : '#e0dbd2' }]}>
               <Text style={[styles.tabText, { color: active ? '#fff' : '#6a6058' }]}>{tab.label.toUpperCase()}</Text>
             </TouchableOpacity>
@@ -266,7 +348,7 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
           const active = activeTab === cat.id;
           const cs = CAT_STYLE[cat.id];
           return (
-            <TouchableOpacity key={cat.id} onPress={() => onTabChange(cat.id)}
+            <TouchableOpacity key={cat.id} onPress={() => onTabChange(activeTab === cat.id ? '' : cat.id)}
               style={[styles.tab, { backgroundColor: active ? cs.bg : '#ffffff', borderColor: active ? cs.text : '#e0dbd2' }]}>
               <Text style={[styles.tabText, { color: active ? cs.text : '#6a6058' }]}>{cat.label.toUpperCase()}</Text>
             </TouchableOpacity>
@@ -294,46 +376,53 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
 export { DILEMMES_INIT, P, CAT_STYLE, CATEGORIES };
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: P.bg },
-  header:       { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 8 },
-  logo:         { fontSize: 30, fontWeight: '900', color: P.text, letterSpacing: -1 },
-  tabsScroll:   { height: 44, flexShrink: 0, flexGrow: 0 },
-  tabsContent:  { paddingLeft: 16, paddingRight: 60, gap: 7, paddingVertical: 4 },
-  fixedTabs:    { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginBottom: 6 },
-  tab:          { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, height: 34, justifyContent: 'center', alignItems: 'center' },
-  tabText:      { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
-  feed:         { padding: 16, paddingBottom: 100 },
-  card:         { backgroundColor: P.card, borderRadius: 20, padding: 20, marginBottom: 14, borderWidth: 1.5, borderColor: P.cardBorder },
-  cardHeader:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  avatar:       { width: 34, height: 34, borderRadius: 17, backgroundColor: P.teal, alignItems: 'center', justifyContent: 'center' },
-  avatarText:   { fontSize: 13, fontWeight: '800', color: '#fff' },
-  auteur:       { fontSize: 12, fontWeight: '700', color: P.text },
-  temps:        { fontSize: 10, color: P.textLight },
-  badges:       { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 12 },
-  badge:        { borderRadius: 6, paddingHorizontal: 9, paddingVertical: 3 },
-  badgeText:    { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
-  question:     { fontSize: 16, fontWeight: '700', color: P.text, lineHeight: 24, marginBottom: 16 },
-  voteCount:    { fontSize: 28, fontWeight: '900', color: P.textLight, textAlign: 'center' },
-  voteLabel:    { fontSize: 11, color: P.textLight, textAlign: 'center', marginBottom: 14 },
-  btns:         { flexDirection: 'row', gap: 10 },
-  btn:          { flex: 1, padding: 14, borderRadius: 13, alignItems: 'center' },
-  btnText:      { fontSize: 12, fontWeight: '800', textAlign: 'center' },
-  suspense:     { alignItems: 'center', paddingVertical: 20 },
-  suspenseText: { fontSize: 12, color: P.textMid, marginBottom: 12 },
-  dots:         { flexDirection: 'row', gap: 6 },
-  dot:          { width: 8, height: 8, borderRadius: 4, backgroundColor: P.rose },
-  barRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
-  barLabel:     { fontSize: 12, fontWeight: '700', flex: 1 },
-  barPct:       { fontSize: 13, fontWeight: '900' },
-  track:        { height: 9, borderRadius: 999, overflow: 'hidden' },
-  bar:          { height: '100%', borderRadius: 999 },
-  totalVotes:   { fontSize: 11, color: P.textLight, textAlign: 'center', marginTop: 8 },
-  majorityMsg:  { fontSize: 11, fontWeight: '800', textAlign: 'center', marginTop: 4 },
-  myVoteBadge:  { borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  myVoteText:   { fontSize: 10, fontWeight: '800', color: '#fff' },
-  changeRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: P.cardBorder },
-  changeBtn:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 2 },
-  annuler:      { fontSize: 11, color: P.textLight, fontWeight: '600' },
-  shareBtn:     { paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#e0dbd2', marginTop: 12 },
-  shareText:    { fontSize: 12, fontWeight: '700', color: '#a89e90' },
+  container:         { flex: 1, backgroundColor: P.bg },
+  header:            { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 8 },
+  logo:              { fontSize: 30, fontWeight: '900', color: P.text, letterSpacing: -1 },
+  tabsScroll:        { height: 44, flexShrink: 0, flexGrow: 0 },
+  tabsContent:       { paddingLeft: 16, paddingRight: 60, gap: 7, paddingVertical: 4 },
+  fixedTabs:         { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginBottom: 6 },
+  tab:               { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, height: 34, justifyContent: 'center', alignItems: 'center' },
+  tabText:           { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+  feed:              { padding: 16, paddingBottom: 100 },
+  card:              { backgroundColor: P.card, borderRadius: 20, padding: 20, marginBottom: 14, borderWidth: 1.5, borderColor: P.cardBorder },
+  cardHeader:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  avatar:            { width: 34, height: 34, borderRadius: 17, backgroundColor: P.teal, alignItems: 'center', justifyContent: 'center' },
+  avatarText:        { fontSize: 13, fontWeight: '800', color: '#fff' },
+  auteur:            { fontSize: 12, fontWeight: '700', color: P.text },
+  temps:             { fontSize: 10, color: P.textLight },
+  badges:            { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 12 },
+  badge:             { borderRadius: 6, paddingHorizontal: 9, paddingVertical: 3 },
+  badgeText:         { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  question:          { fontSize: 16, fontWeight: '700', color: P.text, lineHeight: 24, marginBottom: 16 },
+  voteCount:         { fontSize: 28, fontWeight: '900', color: P.textLight, textAlign: 'center' },
+  voteLabel:         { fontSize: 11, color: P.textLight, textAlign: 'center', marginBottom: 14 },
+  btns:              { flexDirection: 'row', gap: 10 },
+  btn:               { flex: 1, padding: 14, borderRadius: 13, alignItems: 'center' },
+  btnText:           { fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  suspense:          { alignItems: 'center', paddingVertical: 20 },
+  suspenseText:      { fontSize: 12, color: P.textMid, marginBottom: 12 },
+  dots:              { flexDirection: 'row', gap: 6 },
+  dot:               { width: 8, height: 8, borderRadius: 4, backgroundColor: P.rose },
+  barRow:            { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  barLabel:          { fontSize: 12, fontWeight: '700', flex: 1 },
+  barPct:            { fontSize: 13, fontWeight: '900' },
+  track:             { height: 9, borderRadius: 999, overflow: 'hidden' },
+  bar:               { height: '100%', borderRadius: 999 },
+  totalVotes:        { fontSize: 11, color: P.textLight, textAlign: 'center', marginTop: 8 },
+  majorityMsg:       { fontSize: 11, fontWeight: '800', textAlign: 'center', marginTop: 4 },
+  myVoteBadge:       { borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  myVoteText:        { fontSize: 10, fontWeight: '800', color: '#fff' },
+  changeRow:         { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: P.cardBorder },
+  changeBtn:         { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 2 },
+  annuler:           { fontSize: 11, color: P.textLight, fontWeight: '600' },
+  shareBtn:          { paddingVertical: 12, flex: 1 },
+  shareText:         { fontSize: 12, fontWeight: '700', color: '#a89e90' },
+  shareBtnRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#e0dbd2', marginTop: 12 },
+  signalerBtn:       { paddingVertical: 12, paddingHorizontal: 8 },
+  signalerText:      { fontSize: 12, fontWeight: '600', color: '#a89e90' },
+  splitBarContainer: { flexDirection: 'row', height: 12, borderRadius: 999, overflow: 'hidden', backgroundColor: '#f0ece6' },
+  splitBarA:         { height: 12, backgroundColor: P.rose, borderRadius: 999 },
+  splitBarB:         { height: 12, backgroundColor: P.teal, borderRadius: 999 },
+  splitBarCenter:    { width: 2, height: 12, backgroundColor: '#f2f0eb', zIndex: 1 },
 });

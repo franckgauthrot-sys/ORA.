@@ -22,9 +22,7 @@ export default function App() {
   const [feed, setFeed]             = useState([]);
   const [userVotes, setUserVotes]   = useState({});
   const [myPosts, setMyPosts]       = useState([]);
-  const [activeTab, setActiveTab]   = useState('trending');
-  const [notif, setNotif]           = useState(null);
-  const [fomoSeen, setFomoSeen]     = useState(false);
+  const [activeTab, setActiveTab]   = useState('');
   const [loading, setLoading]       = useState(true);
   const [user, setUser]             = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -65,11 +63,6 @@ export default function App() {
     chargerMesVotes();
 
     return () => subscription?.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const t = setTimeout(() => setNotif('12 personnes ont voté sur ton dilemme 🔥'), 5000);
-    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
@@ -228,17 +221,6 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {notif && (
-        <TouchableOpacity onPress={() => setNotif(null)} style={styles.toast}>
-          <Text style={styles.toastText}>🔔 {notif}</Text>
-        </TouchableOpacity>
-      )}
-      {!fomoSeen && page === 'feed' && (
-        <TouchableOpacity onPress={() => setFomoSeen(true)} style={styles.fomo}>
-          <Text style={styles.fomoText}>4 nouveaux 🔥</Text>
-        </TouchableOpacity>
-      )}
-
       {page === 'feed' && (
         <FeedScreen
           dilemmes={feed}
@@ -272,11 +254,6 @@ export default function App() {
             <TouchableOpacity key={item.id} style={styles.navItem} onPress={() => setPage(item.id)}>
               <Text style={[styles.navIcon, { color: active ? P.teal : P.textMid }]}>{item.icon}</Text>
               <Text style={[styles.navLabel, { color: active ? P.teal : P.textMid }]}>{item.label.toUpperCase()}</Text>
-              {item.id === 'profil' && (
-                <View style={styles.streakDot}>
-                  <Text style={styles.streakText}>3</Text>
-                </View>
-              )}
             </TouchableOpacity>
           );
         })}
