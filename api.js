@@ -44,6 +44,14 @@ export const postDilemme = async ({ question, optionA, optionB, categories, user
 export const voterPour = async (dilemmeId, choix) => {
   const userId = await getUserId();
 
+  // Vérifier si déjà voté
+  const { data: existing } = await supabase
+    .from('votes')
+    .select('choix')
+    .eq('dilemme_id', dilemmeId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
   // Enregistrer le vote
   const { error } = await supabase
     .from('votes')
@@ -53,43 +61,44 @@ export const voterPour = async (dilemmeId, choix) => {
     );
   if (error) throw error;
 
-  // Recalculer les compteurs depuis la table votes
-  const { data: allVotes } = await supabase
-    .from('votes')
-    .select('choix')
-    .eq('dilemme_id', dilemmeId);
-
-  const votesA = allVotes.filter(v => v.choix === 'A').length;
-  const votesB = allVotes.filter(v => v.choix === 'B').length;
-
-  await supabase
-    .from('dilemmes')
-    .update({ votes_a: votesA, votes_b: votesB })
-    .eq('id', dilemmeId);
+  // Incrémenter/décrémenter directement sans recalculer depuis zéro
+  if (existing) {
+    // Changement de vote
+    if (existing.choix !== choix) {
+      await supabase.rpc('increment_vote', { dilemme_id: dilemmeId, column_name: choix === 'A' ? 'votes_a' : 'votes_b' });
+      await supabase.rpc('decrement_vote', { dilemme_id: dilemmeId, column_name: existing.choix === 'A' ? 'votes_a' : 'votes_b' });
+    }
+  } else {
+    // Nouveau vote
+    await supabase.rpc('increment_vote', { dilemme_id: dilemmeId, column_name: choix === 'A' ? 'votes_a' : 'votes_b' });
+  }
 };
 
 export const annulerVote = async (dilemmeId) => {
   const userId = await getUserId();
 
+  // Récupérer le vote existant avant de supprimer
+  const { data: existing } = await supabase
+    .from('votes')
+    .select('choix')
+    .eq('dilemme_id', dilemmeId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!existing) return;
+
+  // Supprimer le vote
   await supabase
     .from('votes')
     .delete()
     .eq('dilemme_id', dilemmeId)
     .eq('user_id', userId);
 
-  // Recalculer les compteurs
-  const { data: allVotes } = await supabase
-    .from('votes')
-    .select('choix')
-    .eq('dilemme_id', dilemmeId);
-
-  const votesA = (allVotes || []).filter(v => v.choix === 'A').length;
-  const votesB = (allVotes || []).filter(v => v.choix === 'B').length;
-
-  await supabase
-    .from('dilemmes')
-    .update({ votes_a: votesA, votes_b: votesB })
-    .eq('id', dilemmeId);
+  // Décrémenter uniquement le bon compteur
+  await supabase.rpc('decrement_vote', {
+    dilemme_id: dilemmeId,
+    column_name: existing.choix === 'A' ? 'votes_a' : 'votes_b',
+  });
 };
 
 export const getMesVotes = async () => {

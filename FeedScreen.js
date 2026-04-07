@@ -54,7 +54,7 @@ const DILEMMES_INIT = [
 
 function Badge({ catId }) {
   const s = CAT_STYLE[catId];
-  const cat = [...CATEGORIES, { id: 'fun', label: 'Tu préfères' }, { id: 'parfait', label: 'Dilemme Parfait' }].find(c => c.id === catId);
+  const cat = [...CATEGORIES, { id: 'parfait', label: 'Dilemme Parfait' }].find(c => c.id === catId);
   if (!cat || !s) return null;
   return (
     <View style={[styles.badge, { backgroundColor: s.bg }]}>
@@ -82,7 +82,22 @@ function DilemmeCard({ d, onVote, userVotes }) {
 
   // Score de perfection — plus proche de 0, plus c'est parfait
   const perfScore = Math.abs(pctA - 50);
-  const perfLabel = perfScore === 0 ? '🎯 PARFAIT !' : perfScore <= 5 ? '🔥 Très proche !' : perfScore <= 15 ? '👌 Pas mal !' : '💪 Continue !';
+  const isPerfect = perfScore <= 2; // 48-52%
+const perfectAnim = useRef(new Animated.Value(0)).current;
+
+useEffect(() => {
+  if (isPerfect && revealed) {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(perfectAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(perfectAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  } else {
+    perfectAnim.setValue(0);
+  }
+}, [isPerfect, revealed]);
+const perfLabel = isPerfect ? '🎯 DILEMME PARFAIT !' : perfScore <= 5 ? '🔥 Très proche !' : perfScore <= 15 ? '👌 Pas mal !' : '💪 Continue !';
 
   const animateBars = (pA, pB) => {
     barA.setValue(0);
@@ -160,7 +175,21 @@ function DilemmeCard({ d, onVote, userVotes }) {
   const isMajority = voted && (voted === 'A' ? pctA : pctB) > 50;
 
   return (
-    <View style={styles.card}>
+    <Animated.View style={[styles.card, isPerfect && revealed ? {
+      borderColor: perfectAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['#f0c000', '#e8943a'],
+      }),
+      borderWidth: 2.5,
+      shadowColor: '#f0c000',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: perfectAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.3, 0.8],
+      }),
+      shadowRadius: 12,
+    } : {}]}>
+
       <View style={styles.cardHeader}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{d.auteur[0]}</Text>
@@ -211,18 +240,27 @@ function DilemmeCard({ d, onVote, userVotes }) {
             /* Barre 50/50 spéciale Dilemme Parfait */
             <View style={{ marginBottom: 16, marginTop: 8 }}>
               <View style={styles.splitBarContainer}>
-                <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                  <Animated.View style={[styles.splitBarA, {
-                    width: barA.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] })
-                  }]} />
-                </View>
-                <View style={styles.splitBarCenter} />
-                <View style={{ flex: 1, alignItems: 'flex-start' }}>
-                  <Animated.View style={[styles.splitBarB, {
-                    width: barB.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] })
-                  }]} />
-                </View>
-              </View>
+  <Animated.View style={[styles.splitBarCursor, {
+    left: barA.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
+    width: barA.interpolate({
+      inputRange: [0, 40, 50, 60, 100],
+      outputRange: [8, 14, 24, 14, 8],
+    }),
+    height: barA.interpolate({
+      inputRange: [0, 40, 50, 60, 100],
+      outputRange: [8, 10, 14, 10, 8],
+    }),
+    backgroundColor: barA.interpolate({
+      inputRange: [0, 35, 50, 65, 100],
+      outputRange: ['#a89e90', '#d4a800', '#f0c000', '#d4a800', '#a89e90'],
+    }),
+    marginTop: barA.interpolate({
+      inputRange: [0, 40, 50, 60, 100],
+      outputRange: [2, 1, 0, 1, 2],
+    }),
+  }]} />
+  <View style={styles.splitBarCenter} />
+</View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   {voted === 'A' && <View style={[styles.myVoteBadge, { backgroundColor: P.rose }]}><Text style={styles.myVoteText}>✓</Text></View>}
@@ -305,7 +343,7 @@ function DilemmeCard({ d, onVote, userVotes }) {
           </View>
         </View>
       )}
-    </View>
+ </Animated.View>
   );
 }
 
@@ -313,7 +351,7 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
   let displayed;
   if (activeTab === 'trending') {
     displayed = [...dilemmes].sort((a, b) => (b.votesA + b.votesB) - (a.votesA + a.votesB));
-  } else if (activeTab === 'fun' || activeTab === 'parfait') {
+  } else if (activeTab === 'parfait') {
     displayed = dilemmes.filter(d => d.categories.includes(activeTab));
   } else if (activeTab === '') {
     displayed = [...dilemmes];
@@ -330,7 +368,6 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
       <View style={styles.fixedTabs}>
         {[
           { id: 'trending', label: '🔥 Trending' },
-          { id: 'fun',      label: '🎮 Tu préfères' },
           { id: 'parfait',  label: '🎯 Dilemme Parfait' },
         ].map(tab => {
           const active = activeTab === tab.id;
@@ -421,8 +458,7 @@ const styles = StyleSheet.create({
   shareBtnRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#e0dbd2', marginTop: 12 },
   signalerBtn:       { paddingVertical: 12, paddingHorizontal: 8 },
   signalerText:      { fontSize: 12, fontWeight: '600', color: '#a89e90' },
-  splitBarContainer: { flexDirection: 'row', height: 12, borderRadius: 999, overflow: 'hidden', backgroundColor: '#f0ece6' },
-  splitBarA:         { height: 12, backgroundColor: P.rose, borderRadius: 999 },
-  splitBarB:         { height: 12, backgroundColor: P.teal, borderRadius: 999 },
-  splitBarCenter:    { width: 2, height: 12, backgroundColor: '#f2f0eb', zIndex: 1 },
+splitBarContainer: { height: 14, borderRadius: 999, backgroundColor: '#f0ece6', position: 'relative', overflow: 'visible', marginVertical: 4 },
+splitBarCursor:    { position: 'absolute', borderRadius: 999, marginLeft: -12 },
+splitBarCenter:    { position: 'absolute', left: '50%', width: 2, height: 14, backgroundColor: '#c0b8b0', zIndex: 2 },
 });

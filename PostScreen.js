@@ -31,7 +31,6 @@ const CAT_STYLE = {
 };
 
 const SPECIAL_CATS = [
-  { id: 'fun',     label: '🎮 Tu préfères' },
   { id: 'parfait', label: '🎯 Dilemme Parfait' },
 ];
 
@@ -55,8 +54,8 @@ export default function PostScreen({ onPost }) {
   const [phase, setPhase]       = useState('form');
 
 const toggleCat = (id) => {
-  const isSpecial = id === 'fun' || id === 'parfait';
-  const hasSpecial = cats.includes('fun') || cats.includes('parfait');
+  const isSpecial = id === 'parfait';
+  const hasSpecial = cats.includes('parfait');
   
   if (isSpecial) {
     // Si on clique sur une spéciale — elle remplace tout

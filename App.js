@@ -149,8 +149,8 @@ export default function App() {
       setUserVotes(v => { const n = { ...v }; delete n[id]; return n; });
       setFeed(f => f.map(d => d.id === id ? {
         ...d,
-        votesA: d.votesA - (prev === 'A' ? 1 : 0),
-        votesB: d.votesB - (prev === 'B' ? 1 : 0),
+        votesA: Math.max(0, d.votesA - (prev === 'A' ? 1 : 0)),
+        votesB: Math.max(0, d.votesB - (prev === 'B' ? 1 : 0)),
       } : d));
       try { await annulerVote(id); } catch (e) { console.log(e); }
     } else {
