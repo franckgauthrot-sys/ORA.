@@ -32,6 +32,10 @@ function MiniCard({ d, userVotes, onVote }) {
   const pctB  = 100 - pctA;
   const barA  = useRef(new Animated.Value(0)).current;
   const barB  = useRef(new Animated.Value(0)).current;
+  const isParfait = d.categories?.includes('parfait');
+  const perfScore = Math.abs(pctA - 50);
+  const isPerfect = perfScore <= 2;
+  const perfectAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -40,37 +44,89 @@ function MiniCard({ d, userVotes, onVote }) {
     ]).start();
   }, []);
 
+  useEffect(() => {
+    if (isPerfect && isParfait) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(perfectAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+          Animated.timing(perfectAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
+        ])
+      ).start();
+    }
+  }, [isPerfect]);
+
   return (
-    <View style={styles.card}>
+    <Animated.View style={[styles.card, isPerfect && isParfait ? {
+      borderColor: perfectAnim.interpolate({ inputRange: [0, 1], outputRange: ['#f0c000', '#e8943a'] }),
+      borderWidth: 2.5,
+      shadowColor: '#f0c000',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: perfectAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] }),
+      shadowRadius: 12,
+    } : {}]}>
       <Text style={styles.cardAuteur}>{d.auteur}</Text>
       <Text style={styles.cardQuestion}>"{d.question}"</Text>
-      {[
-        { label: d.optionA, key: 'A', pct: pctA, color: P.rose, deep: P.roseDeep, track: P.roseLight, bar: barA },
-        { label: d.optionB, key: 'B', pct: pctB, color: P.teal, deep: P.tealDeep, track: P.tealLight, bar: barB },
-      ].map(opt => (
-        <View key={opt.key} style={{ marginBottom: 10 }}>
-          <View style={styles.barRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
-              {voted === opt.key && (
-                <View style={[styles.myVoteBadge, { backgroundColor: opt.color }]}>
-                  <Text style={styles.myVoteText}>✓</Text>
-                </View>
-              )}
-              <Text style={[styles.barLabel, { color: opt.deep }]} numberOfLines={1}>{opt.label}</Text>
-            </View>
-            <Text style={[styles.barPct, { color: opt.deep }]}>{opt.pct}%</Text>
+
+      {isParfait ? (
+        <View style={{ marginBottom: 10 }}>
+          <View style={{ height: 14, borderRadius: 999, backgroundColor: '#f0ece6', position: 'relative', overflow: 'visible', marginVertical: 4 }}>
+            <Animated.View style={{
+              position: 'absolute',
+              borderRadius: 999,
+              marginLeft: -12,
+              left: barA.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
+              width: barA.interpolate({ inputRange: [0, 40, 50, 60, 100], outputRange: [8, 14, 24, 14, 8] }),
+              height: barA.interpolate({ inputRange: [0, 40, 50, 60, 100], outputRange: [8, 10, 14, 10, 8] }),
+              backgroundColor: barA.interpolate({ inputRange: [0, 35, 50, 65, 100], outputRange: ['#a89e90', '#d4a800', '#f0c000', '#d4a800', '#a89e90'] }),
+              marginTop: barA.interpolate({ inputRange: [0, 40, 50, 60, 100], outputRange: [2, 1, 0, 1, 2] }),
+            }} />
+            <View style={{ position: 'absolute', left: '50%', width: 2, height: 14, backgroundColor: '#c0b8b0', zIndex: 2 }} />
           </View>
-          <View style={[styles.track, { backgroundColor: opt.track }]}>
-            <Animated.View style={[styles.bar, { backgroundColor: opt.color, width: opt.bar.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }]} />
-          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+    {voted === 'A' && <View style={[styles.myVoteBadge, { backgroundColor: '#4db8a8' }]}><Text style={styles.myVoteText}>✓</Text></View>}
+    <Text style={{ fontSize: 12, fontWeight: '700', color: '#2a8a7a', flex: 1 }} numberOfLines={2}>{d.optionA}</Text>
+  </View>
+  <Text style={{ fontSize: 13, fontWeight: '900', color: '#2a8a7a', marginLeft: 8 }}>{pctA}%</Text>
+</View>
+<View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+    {voted === 'B' && <View style={[styles.myVoteBadge, { backgroundColor: '#e8943a' }]}><Text style={styles.myVoteText}>✓</Text></View>}
+    <Text style={{ fontSize: 12, fontWeight: '700', color: '#b86820', flex: 1 }} numberOfLines={2}>{d.optionB}</Text>
+  </View>
+  <Text style={{ fontSize: 13, fontWeight: '900', color: '#b86820', marginLeft: 8 }}>{pctB}%</Text>
+</View>
         </View>
-      ))}
+      ) : (
+        [
+          { label: d.optionA, key: 'A', pct: pctA, color: '#4db8a8', deep: '#2a8a7a', track: '#cff0ea', bar: barA },
+          { label: d.optionB, key: 'B', pct: pctB, color: '#e8943a', deep: '#b86820', track: '#fae0c0', bar: barB },
+        ].map(opt => (
+          <View key={opt.key} style={{ marginBottom: 10 }}>
+            <View style={styles.barRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
+                {voted === opt.key && (
+                  <View style={[styles.myVoteBadge, { backgroundColor: opt.color }]}>
+                    <Text style={styles.myVoteText}>✓</Text>
+                  </View>
+                )}
+                <Text style={[styles.barLabel, { color: opt.deep }]} numberOfLines={1}>{opt.label}</Text>
+              </View>
+              <Text style={[styles.barPct, { color: opt.deep }]}>{opt.pct}%</Text>
+            </View>
+            <View style={[styles.track, { backgroundColor: opt.track }]}>
+              <Animated.View style={[styles.bar, { backgroundColor: opt.color, width: opt.bar.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }]} />
+            </View>
+          </View>
+        ))
+      )}
+
       <Text style={styles.totalVotes}>{total.toLocaleString()} votes</Text>
       <View style={styles.changeRow}>
         {['A', 'B'].map(key => (
           <TouchableOpacity key={key} onPress={() => { if (voted !== key) onVote(d.id, key); }}
-            style={[styles.changeBtn, { borderColor: voted === key ? (key === 'A' ? P.roseDeep : P.tealDeep) : P.cardBorder, backgroundColor: voted === key ? (key === 'A' ? P.roseLight : P.tealLight) : 'transparent' }]}>
-            <Text style={{ fontSize: 11, fontWeight: '800', color: voted === key ? (key === 'A' ? P.roseDeep : P.tealDeep) : P.textLight }}>
+            style={[styles.changeBtn, { borderColor: voted === key ? (key === 'A' ? '#2a8a7a' : '#b86820') : P.cardBorder, backgroundColor: voted === key ? (key === 'A' ? '#cff0ea' : '#fae0c0') : 'transparent' }]}>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: voted === key ? (key === 'A' ? '#2a8a7a' : '#b86820') : P.textLight }}>
               {voted === key ? '✓ ' : ''}{key}
             </Text>
           </TouchableOpacity>
@@ -79,7 +135,7 @@ function MiniCard({ d, userVotes, onVote }) {
           <Text style={styles.annuler}>Annuler</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

@@ -82,7 +82,7 @@ function DilemmeCard({ d, onVote, userVotes }) {
 
   // Score de perfection — plus proche de 0, plus c'est parfait
   const perfScore = Math.abs(pctA - 50);
-  const isPerfect = perfScore <= 2; // 48-52%
+  const isPerfect = isParfait && perfScore <= 2; // 48-52%
 const perfectAnim = useRef(new Animated.Value(0)).current;
 
 useEffect(() => {
