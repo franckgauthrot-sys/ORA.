@@ -24,7 +24,6 @@ const CAT_STYLE = {
   social:   { bg: '#cff0ea', text: '#2a8a7a' },
   argent:   { bg: '#eef4c0', text: '#6a8010' },
   famille:  { bg: '#e0daf4', text: '#5848a8' },
-  fun:      { bg: '#fde8f0', text: '#c0306a' },
   parfait:  { bg: '#fff0d0', text: '#c07800' },
   achats:   { bg: '#e8f4e8', text: '#2a7a2a' },
   maison:   { bg: '#f4e8d0', text: '#8a5820' },
@@ -73,19 +72,19 @@ function DilemmeCard({ d, onVote, userVotes }) {
   const [revealing, setRevealing] = useState(false);
   const [revealed,  setRevealed]  = useState(!!voted);
   const [showPlus,  setShowPlus]  = useState(false);
-  const plusAnim = useRef(new Animated.Value(0)).current;
+  const plusAnim   = useRef(new Animated.Value(0)).current;
+  const perfectAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
 
   const isParfait = d.categories.includes('parfait');
-
-  // Score de perfection — plus proche de 0, plus c'est parfait
   const perfScore = Math.abs(pctA - 50);
-  const isPerfect = isParfait && perfScore <= 2; // 48-52%
-const perfectAnim = useRef(new Animated.Value(0)).current;
+  const isPerfect = isParfait && perfScore <= 2;
+  const perfLabel = isPerfect ? '🎯 DILEMME PARFAIT !' : perfScore <= 5 ? '🔥 Très proche !' : perfScore <= 15 ? '👌 Pas mal !' : '💪 Continue !';
 
-useEffect(() => {
+  useEffect(() => {
   if (isPerfect && revealed) {
     Animated.loop(
       Animated.sequence([
@@ -97,7 +96,6 @@ useEffect(() => {
     perfectAnim.setValue(0);
   }
 }, [isPerfect, revealed]);
-const perfLabel = isPerfect ? '🎯 DILEMME PARFAIT !' : perfScore <= 5 ? '🔥 Très proche !' : perfScore <= 15 ? '👌 Pas mal !' : '💪 Continue !';
 
   const animateBars = (pA, pB) => {
     barA.setValue(0);
@@ -176,17 +174,11 @@ const perfLabel = isPerfect ? '🎯 DILEMME PARFAIT !' : perfScore <= 5 ? '🔥 
 
   return (
     <Animated.View style={[styles.card, isPerfect && revealed ? {
-      borderColor: perfectAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['#f0c000', '#e8943a'],
-      }),
+      borderColor: perfectAnim.interpolate({ inputRange: [0, 1], outputRange: ['#f0c000', '#e8943a'] }),
       borderWidth: 2.5,
       shadowColor: '#f0c000',
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: perfectAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.3, 0.8],
-      }),
+      shadowOpacity: perfectAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] }),
       shadowRadius: 12,
     } : {}]}>
 
@@ -237,45 +229,75 @@ const perfLabel = isPerfect ? '🎯 DILEMME PARFAIT !' : perfScore <= 5 ? '🔥 
       ) : (
         <View>
           {isParfait ? (
-            /* Barre 50/50 spéciale Dilemme Parfait */
-            <View style={{ marginBottom: 16, marginTop: 8 }}>
-              <View style={styles.splitBarContainer}>
-  <Animated.View style={[styles.splitBarCursor, {
-    left: barA.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
-    width: barA.interpolate({
-      inputRange: [0, 40, 50, 60, 100],
-      outputRange: [8, 14, 24, 14, 8],
-    }),
-    height: barA.interpolate({
-      inputRange: [0, 40, 50, 60, 100],
-      outputRange: [8, 10, 14, 10, 8],
-    }),
+            /* Barre 50/50 avec cercle flottant */
+            <View style={{ marginVertical: 8 }}>
+              {/* Labels options */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+                  {voted === 'A' && <View style={[styles.myVoteBadge, { backgroundColor: P.rose }]}><Text style={styles.myVoteText}>✓</Text></View>}
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: P.roseDeep, flex: 1 }} numberOfLines={2}>{d.optionA}</Text>
+                </View>
+                <Text style={{ fontSize: 13, fontWeight: '900', color: P.roseDeep, marginLeft: 8 }}>{pctA}%</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+                  {voted === 'B' && <View style={[styles.myVoteBadge, { backgroundColor: P.teal }]}><Text style={styles.myVoteText}>✓</Text></View>}
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: P.tealDeep, flex: 1 }} numberOfLines={2}>{d.optionB}</Text>
+                </View>
+                <Text style={{ fontSize: 13, fontWeight: '900', color: P.tealDeep, marginLeft: 8 }}>{pctB}%</Text>
+              </View>
+
+              {/* Barre avec cercle flottant */}
+              <View style={{ paddingTop: 28 }}>
+  {/* Cercle flottant */}
+  <Animated.View style={{
+    position: 'absolute',
+    top: 0,
+    left: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['100%', '50%', '0%'] }),    marginLeft: -20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: barA.interpolate({
       inputRange: [0, 35, 50, 65, 100],
-      outputRange: ['#a89e90', '#d4a800', '#f0c000', '#d4a800', '#a89e90'],
-    }),
-    marginTop: barA.interpolate({
-      inputRange: [0, 40, 50, 60, 100],
-      outputRange: [2, 1, 0, 1, 2],
-    }),
-  }]} />
-  <View style={styles.splitBarCenter} />
+      outputRange: ['#e8943a', '#d4a800', '#f0c000', '#d4a800', '#4db8a8'],    }),
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    zIndex: 10,
+  }}>
+    <Animated.Text style={{ fontSize: isPerfect ? 14 : 10, fontWeight: '900', color: '#fff' }}>
+  {isPerfect ? '🎯' : (pctA >= 50 ? `${pctA}%` : `${pctB}%`)}
+</Animated.Text>
+  </Animated.View>
+
+  {/* Barre de fond */}
+  <View style={{ height: 12, borderRadius: 999, backgroundColor: '#f0ece6', overflow: 'hidden', position: 'relative' }}>
+    <Animated.View style={{
+      position: 'absolute',
+      height: '100%',
+      borderRadius: 999,
+      backgroundColor: barA.interpolate({
+        inputRange: [0, 35, 50, 65, 100],
+outputRange: ['#e8943a', '#d4a800', '#f0c000', '#d4a800', '#4db8a8'],      }),
+      left: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['50%', '50%', '0%'] }),
+      right: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['0%', '50%', '50%'] }),
+    }} />
+    {/* Trait central exactement au milieu */}
+    <View style={{
+      position: 'absolute',
+      left: '50%',
+      marginLeft: -1,
+      width: 2,
+      height: 12,
+      backgroundColor: '#c0b8b0',
+      zIndex: 2,
+    }} />
+  </View>
 </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  {voted === 'A' && <View style={[styles.myVoteBadge, { backgroundColor: P.rose }]}><Text style={styles.myVoteText}>✓</Text></View>}
-                  <Text style={[styles.barLabel, { color: P.roseDeep }]} numberOfLines={1}>{d.optionA}</Text>
-                </View>
-                <Text style={[styles.barPct, { color: P.roseDeep }]}>{pctA}%</Text>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  {voted === 'B' && <View style={[styles.myVoteBadge, { backgroundColor: P.teal }]}><Text style={styles.myVoteText}>✓</Text></View>}
-                  <Text style={[styles.barLabel, { color: P.tealDeep }]} numberOfLines={1}>{d.optionB}</Text>
-                </View>
-                <Text style={[styles.barPct, { color: P.tealDeep }]}>{pctB}%</Text>
-              </View>
-              <Text style={[styles.totalVotes, { marginTop: 8 }]}>{total.toLocaleString()} votes</Text>
+              <Text style={[styles.totalVotes, { marginTop: 16 }]}>{total.toLocaleString()} votes</Text>
               <Text style={[styles.majorityMsg, { color: '#c07800', marginTop: 4 }]}>{perfLabel}</Text>
             </View>
           ) : (
@@ -343,7 +365,7 @@ const perfLabel = isPerfect ? '🎯 DILEMME PARFAIT !' : perfScore <= 5 ? '🔥 
           </View>
         </View>
       )}
- </Animated.View>
+    </Animated.View>
   );
 }
 
@@ -352,7 +374,7 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
   if (activeTab === 'trending') {
     displayed = [...dilemmes].sort((a, b) => (b.votesA + b.votesB) - (a.votesA + a.votesB));
   } else if (activeTab === 'parfait') {
-    displayed = dilemmes.filter(d => d.categories.includes(activeTab));
+    displayed = dilemmes.filter(d => d.categories.includes('parfait'));
   } else if (activeTab === '') {
     displayed = [...dilemmes];
   } else {
@@ -396,11 +418,7 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
       <ScrollView
         contentContainerStyle={styles.feed}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing || false}
-            onRefresh={onRefresh}
-            tintColor="#e8943a"
-          />
+          <RefreshControl refreshing={refreshing || false} onRefresh={onRefresh} tintColor="#e8943a" />
         }>
         {displayed.map(d => (
           <DilemmeCard key={d.id} d={d} onVote={onVote} userVotes={userVotes} />
@@ -413,52 +431,49 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
 export { DILEMMES_INIT, P, CAT_STYLE, CATEGORIES };
 
 const styles = StyleSheet.create({
-  container:         { flex: 1, backgroundColor: P.bg },
-  header:            { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 8 },
-  logo:              { fontSize: 30, fontWeight: '900', color: P.text, letterSpacing: -1 },
-  tabsScroll:        { height: 44, flexShrink: 0, flexGrow: 0 },
-  tabsContent:       { paddingLeft: 16, paddingRight: 60, gap: 7, paddingVertical: 4 },
-  fixedTabs:         { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginBottom: 6 },
-  tab:               { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, height: 34, justifyContent: 'center', alignItems: 'center' },
-  tabText:           { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
-  feed:              { padding: 16, paddingBottom: 100 },
-  card:              { backgroundColor: P.card, borderRadius: 20, padding: 20, marginBottom: 14, borderWidth: 1.5, borderColor: P.cardBorder },
-  cardHeader:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  avatar:            { width: 34, height: 34, borderRadius: 17, backgroundColor: P.teal, alignItems: 'center', justifyContent: 'center' },
-  avatarText:        { fontSize: 13, fontWeight: '800', color: '#fff' },
-  auteur:            { fontSize: 12, fontWeight: '700', color: P.text },
-  temps:             { fontSize: 10, color: P.textLight },
-  badges:            { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 12 },
-  badge:             { borderRadius: 6, paddingHorizontal: 9, paddingVertical: 3 },
-  badgeText:         { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
-  question:          { fontSize: 16, fontWeight: '700', color: P.text, lineHeight: 24, marginBottom: 16 },
-  voteCount:         { fontSize: 28, fontWeight: '900', color: P.textLight, textAlign: 'center' },
-  voteLabel:         { fontSize: 11, color: P.textLight, textAlign: 'center', marginBottom: 14 },
-  btns:              { flexDirection: 'row', gap: 10 },
-  btn:               { flex: 1, padding: 14, borderRadius: 13, alignItems: 'center' },
-  btnText:           { fontSize: 12, fontWeight: '800', textAlign: 'center' },
-  suspense:          { alignItems: 'center', paddingVertical: 20 },
-  suspenseText:      { fontSize: 12, color: P.textMid, marginBottom: 12 },
-  dots:              { flexDirection: 'row', gap: 6 },
-  dot:               { width: 8, height: 8, borderRadius: 4, backgroundColor: P.rose },
-  barRow:            { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
-  barLabel:          { fontSize: 12, fontWeight: '700', flex: 1 },
-  barPct:            { fontSize: 13, fontWeight: '900' },
-  track:             { height: 9, borderRadius: 999, overflow: 'hidden' },
-  bar:               { height: '100%', borderRadius: 999 },
-  totalVotes:        { fontSize: 11, color: P.textLight, textAlign: 'center', marginTop: 8 },
-  majorityMsg:       { fontSize: 11, fontWeight: '800', textAlign: 'center', marginTop: 4 },
-  myVoteBadge:       { borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  myVoteText:        { fontSize: 10, fontWeight: '800', color: '#fff' },
-  changeRow:         { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: P.cardBorder },
-  changeBtn:         { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 2 },
-  annuler:           { fontSize: 11, color: P.textLight, fontWeight: '600' },
-  shareBtn:          { paddingVertical: 12, flex: 1 },
-  shareText:         { fontSize: 12, fontWeight: '700', color: '#a89e90' },
-  shareBtnRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#e0dbd2', marginTop: 12 },
-  signalerBtn:       { paddingVertical: 12, paddingHorizontal: 8 },
-  signalerText:      { fontSize: 12, fontWeight: '600', color: '#a89e90' },
-splitBarContainer: { height: 14, borderRadius: 999, backgroundColor: '#f0ece6', position: 'relative', overflow: 'visible', marginVertical: 4 },
-splitBarCursor:    { position: 'absolute', borderRadius: 999, marginLeft: -12 },
-splitBarCenter:    { position: 'absolute', left: '50%', width: 2, height: 14, backgroundColor: '#c0b8b0', zIndex: 2 },
+  container:    { flex: 1, backgroundColor: P.bg },
+  header:       { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 8 },
+  logo:         { fontSize: 30, fontWeight: '900', color: P.text, letterSpacing: -1 },
+  tabsScroll:   { height: 44, flexShrink: 0, flexGrow: 0 },
+  tabsContent:  { paddingLeft: 16, paddingRight: 60, gap: 7, paddingVertical: 4 },
+  fixedTabs:    { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginBottom: 6 },
+  tab:          { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, height: 34, justifyContent: 'center', alignItems: 'center' },
+  tabText:      { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+  feed:         { padding: 16, paddingBottom: 100 },
+  card:         { backgroundColor: P.card, borderRadius: 20, padding: 20, marginBottom: 14, borderWidth: 1.5, borderColor: P.cardBorder },
+  cardHeader:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  avatar:       { width: 34, height: 34, borderRadius: 17, backgroundColor: P.teal, alignItems: 'center', justifyContent: 'center' },
+  avatarText:   { fontSize: 13, fontWeight: '800', color: '#fff' },
+  auteur:       { fontSize: 12, fontWeight: '700', color: P.text },
+  temps:        { fontSize: 10, color: P.textLight },
+  badges:       { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 12 },
+  badge:        { borderRadius: 6, paddingHorizontal: 9, paddingVertical: 3 },
+  badgeText:    { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  question:     { fontSize: 16, fontWeight: '700', color: P.text, lineHeight: 24, marginBottom: 16 },
+  voteCount:    { fontSize: 28, fontWeight: '900', color: P.textLight, textAlign: 'center' },
+  voteLabel:    { fontSize: 11, color: P.textLight, textAlign: 'center', marginBottom: 14 },
+  btns:         { flexDirection: 'row', gap: 10 },
+  btn:          { flex: 1, padding: 14, borderRadius: 13, alignItems: 'center' },
+  btnText:      { fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  suspense:     { alignItems: 'center', paddingVertical: 20 },
+  suspenseText: { fontSize: 12, color: P.textMid, marginBottom: 12 },
+  dots:         { flexDirection: 'row', gap: 6 },
+  dot:          { width: 8, height: 8, borderRadius: 4, backgroundColor: P.rose },
+  barRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  barLabel:     { fontSize: 12, fontWeight: '700', flex: 1 },
+  barPct:       { fontSize: 13, fontWeight: '900' },
+  track:        { height: 9, borderRadius: 999, overflow: 'hidden' },
+  bar:          { height: '100%', borderRadius: 999 },
+  totalVotes:   { fontSize: 11, color: P.textLight, textAlign: 'center', marginTop: 8 },
+  majorityMsg:  { fontSize: 11, fontWeight: '800', textAlign: 'center', marginTop: 4 },
+  myVoteBadge:  { borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  myVoteText:   { fontSize: 10, fontWeight: '800', color: '#fff' },
+  changeRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: P.cardBorder },
+  changeBtn:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 2 },
+  annuler:      { fontSize: 11, color: P.textLight, fontWeight: '600' },
+  shareBtn:     { paddingVertical: 12, flex: 1 },
+  shareText:    { fontSize: 12, fontWeight: '700', color: '#a89e90' },
+  shareBtnRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#e0dbd2', marginTop: 12 },
+  signalerBtn:  { paddingVertical: 12, paddingHorizontal: 8 },
+  signalerText: { fontSize: 12, fontWeight: '600', color: '#a89e90' },
 });

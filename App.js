@@ -61,6 +61,8 @@ export default function App() {
 
     chargerDilemmes();
     chargerMesVotes();
+    // Timeout de secours — si au bout de 5s on est encore en loading, on force
+setTimeout(() => setLoading(false), 5000);
 
     return () => subscription?.unsubscribe();
   }, []);
