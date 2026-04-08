@@ -34,7 +34,7 @@ function MiniCard({ d, userVotes, onVote }) {
   const barB  = useRef(new Animated.Value(0)).current;
   const isParfait = d.categories?.includes('parfait');
   const perfScore = Math.abs(pctA - 50);
-  const isPerfect = perfScore <= 2;
+  const isPerfect = isParfait && perfScore <= 2;
   const perfectAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -45,18 +45,22 @@ function MiniCard({ d, userVotes, onVote }) {
   }, []);
 
   useEffect(() => {
-    if (isPerfect && isParfait) {
+    if (isPerfect) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(perfectAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
           Animated.timing(perfectAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
         ])
       ).start();
+    } else {
+      perfectAnim.setValue(0);
     }
   }, [isPerfect]);
 
+  const perfLabel = isPerfect ? '🎯 DILEMME PARFAIT !' : perfScore <= 5 ? '🔥 Très proche !' : perfScore <= 15 ? '👌 Pas mal !' : '💪 Continue !';
+
   return (
-    <Animated.View style={[styles.card, isPerfect && isParfait ? {
+    <Animated.View style={[styles.card, isPerfect ? {
       borderColor: perfectAnim.interpolate({ inputRange: [0, 1], outputRange: ['#f0c000', '#e8943a'] }),
       borderWidth: 2.5,
       shadowColor: '#f0c000',
@@ -69,33 +73,78 @@ function MiniCard({ d, userVotes, onVote }) {
 
       {isParfait ? (
         <View style={{ marginBottom: 10 }}>
-          <View style={{ height: 14, borderRadius: 999, backgroundColor: '#f0ece6', position: 'relative', overflow: 'visible', marginVertical: 4 }}>
+          {/* Labels options */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+              {voted === 'A' && <View style={[styles.myVoteBadge, { backgroundColor: '#4db8a8' }]}><Text style={styles.myVoteText}>✓</Text></View>}
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#2a8a7a', flex: 1 }} numberOfLines={2}>{d.optionA}</Text>
+            </View>
+            <Text style={{ fontSize: 13, fontWeight: '900', color: '#2a8a7a', marginLeft: 8 }}>{pctA}%</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+              {voted === 'B' && <View style={[styles.myVoteBadge, { backgroundColor: '#e8943a' }]}><Text style={styles.myVoteText}>✓</Text></View>}
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#b86820', flex: 1 }} numberOfLines={2}>{d.optionB}</Text>
+            </View>
+            <Text style={{ fontSize: 13, fontWeight: '900', color: '#b86820', marginLeft: 8 }}>{pctB}%</Text>
+          </View>
+
+          {/* Barre avec cercle flottant */}
+          <View style={{ paddingTop: 28 }}>
+            {/* Cercle flottant */}
             <Animated.View style={{
               position: 'absolute',
-              borderRadius: 999,
-              marginLeft: -12,
-              left: barA.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
-              width: barA.interpolate({ inputRange: [0, 40, 50, 60, 100], outputRange: [8, 14, 24, 14, 8] }),
-              height: barA.interpolate({ inputRange: [0, 40, 50, 60, 100], outputRange: [8, 10, 14, 10, 8] }),
-              backgroundColor: barA.interpolate({ inputRange: [0, 35, 50, 65, 100], outputRange: ['#a89e90', '#d4a800', '#f0c000', '#d4a800', '#a89e90'] }),
-              marginTop: barA.interpolate({ inputRange: [0, 40, 50, 60, 100], outputRange: [2, 1, 0, 1, 2] }),
-            }} />
-            <View style={{ position: 'absolute', left: '50%', width: 2, height: 14, backgroundColor: '#c0b8b0', zIndex: 2 }} />
+              top: 0,
+              left: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['100%', '50%', '0%'] }),
+              marginLeft: -20,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: barA.interpolate({
+                inputRange: [0, 35, 50, 65, 100],
+                outputRange: ['#e8943a', '#d4a800', '#f0c000', '#d4a800', '#4db8a8'],
+              }),
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2,
+              shadowRadius: 4,
+              zIndex: 10,
+            }}>
+              <Text style={{ fontSize: isPerfect ? 14 : 10, fontWeight: '900', color: '#fff' }}>
+                {isPerfect ? '✨' : (pctA >= 50 ? `${pctA}%` : `${pctB}%`)}
+              </Text>
+            </Animated.View>
+
+            {/* Barre de fond */}
+            <View style={{ height: 12, borderRadius: 999, backgroundColor: '#f0ece6', overflow: 'hidden', position: 'relative' }}>
+              <Animated.View style={{
+                position: 'absolute',
+                height: '100%',
+                borderRadius: 999,
+                backgroundColor: barA.interpolate({
+                  inputRange: [0, 35, 50, 65, 100],
+                  outputRange: ['#e8943a', '#d4a800', '#f0c000', '#d4a800', '#4db8a8'],
+                }),
+                left: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['50%', '50%', '0%'] }),
+                right: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['0%', '50%', '50%'] }),
+              }} />
+              {/* Trait central */}
+              <View style={{
+                position: 'absolute',
+                left: '50%',
+                marginLeft: -1,
+                width: 2,
+                height: 12,
+                backgroundColor: '#c0b8b0',
+                zIndex: 2,
+              }} />
+            </View>
           </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
-    {voted === 'A' && <View style={[styles.myVoteBadge, { backgroundColor: '#4db8a8' }]}><Text style={styles.myVoteText}>✓</Text></View>}
-    <Text style={{ fontSize: 12, fontWeight: '700', color: '#2a8a7a', flex: 1 }} numberOfLines={2}>{d.optionA}</Text>
-  </View>
-  <Text style={{ fontSize: 13, fontWeight: '900', color: '#2a8a7a', marginLeft: 8 }}>{pctA}%</Text>
-</View>
-<View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
-    {voted === 'B' && <View style={[styles.myVoteBadge, { backgroundColor: '#e8943a' }]}><Text style={styles.myVoteText}>✓</Text></View>}
-    <Text style={{ fontSize: 12, fontWeight: '700', color: '#b86820', flex: 1 }} numberOfLines={2}>{d.optionB}</Text>
-  </View>
-  <Text style={{ fontSize: 13, fontWeight: '900', color: '#b86820', marginLeft: 8 }}>{pctB}%</Text>
-</View>
+
+          <Text style={{ fontSize: 11, color: P.textLight, textAlign: 'center', marginTop: 16 }}>{total.toLocaleString()} votes</Text>
+          <Text style={{ fontSize: 11, fontWeight: '800', textAlign: 'center', color: '#c07800', marginTop: 4 }}>{perfLabel}</Text>
         </View>
       ) : (
         [
