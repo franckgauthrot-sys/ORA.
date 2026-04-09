@@ -18,24 +18,25 @@ export default function PseudoScreen({ user, onDone }) {
   const [error, setError]     = useState('');
 
   const handleSave = async () => {
-    if (pseudo.trim().length < 2) {
-      setError('Ton pseudo doit faire au moins 2 caractères');
-      return;
-    }
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ pseudo: pseudo.trim() })
-        .eq('id', user.id);
-      if (error) throw error;
-      onDone(pseudo.trim());
-    } catch (e) {
-      setError('Erreur, réessaie.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (pseudo.trim().length < 2) {
+    setError('Ton pseudo doit faire au moins 2 caractères');
+    return;
+  }
+  setLoading(true);
+  try {
+    // D'abord essayer de créer le profil s'il n'existe pas
+    await supabase
+      .from('profiles')
+      .upsert({ id: user.id, email: user.email, pseudo: pseudo.trim() }, 
+        { onConflict: 'id' });
+    onDone(pseudo.trim());
+  } catch (e) {
+    setError('Erreur, réessaie.');
+    console.log('Erreur pseudo:', e);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <KeyboardAvoidingView
