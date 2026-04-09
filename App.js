@@ -28,41 +28,49 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [pseudo, setPseudo]         = useState(null);
 
-  useEffect(() => {
-    let subscription;
+  const loadProfile = async (sessionUser) => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('pseudo')
+        .eq('id', sessionUser.id)
+        .maybeSingle();
 
+      if (!data) {
+        await supabase
+          .from('profiles')
+          .upsert({ id: sessionUser.id, email: sessionUser.email }, { onConflict: 'id' });
+      } else if (data?.pseudo) {
+        setPseudo(data.pseudo);
+      }
+       await chargerMesVotes(); // ← ajoute ça
+  } catch (e) {
+    console.log('Erreur profil:', e);
+  }
+};
+
+  useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         setUser(session.user);
-        const { data } = await supabase
-          .from('profiles')
-          .select('pseudo')
-          .eq('id', session.user.id)
-          .single();
-        if (data?.pseudo) setPseudo(data.pseudo);
+        await loadProfile(session.user);
       }
     });
 
-    const { data: { subscription: sub } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
         setUser(session.user);
-        const { data } = await supabase
-          .from('profiles')
-          .select('pseudo')
-          .eq('id', session.user.id)
-          .single();
-        if (data?.pseudo) setPseudo(data.pseudo);
+        await loadProfile(session.user);
       } else {
         setUser(null);
         setPseudo(null);
+        await chargerMesVotes();
       }
     });
-    subscription = sub;
 
     chargerDilemmes();
     chargerMesVotes();
-    // Timeout de secours — si au bout de 5s on est encore en loading, on force
-setTimeout(() => setLoading(false), 5000);
+    setTimeout(() => setLoading(false), 5000);
 
     return () => subscription?.unsubscribe();
   }, []);
@@ -82,12 +90,11 @@ setTimeout(() => setLoading(false), 5000);
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, []);
+
   useEffect(() => {
     if (user) {
       registerForPushNotifications(user.id);
-      const cleanup = setupNotificationListeners((notif) => {
-        setNotif(notif.request.content.body);
-      });
+      const cleanup = setupNotificationListeners(() => {});
       return cleanup;
     }
   }, [user]);
@@ -138,12 +145,14 @@ setTimeout(() => setLoading(false), 5000);
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setPseudo(null);
-    setUserVotes({});
-    setMyPosts([]);
-  };
+  await supabase.auth.signOut();
+  setUser(null);
+  setPseudo(null);
+  setUserVotes({});  // ← déjà là
+  setMyPosts([]);    // ← déjà là
+  setFeed([]);       // ← ajoute ça !
+  await chargerDilemmes(); // ← recharge depuis Supabase
+};
 
   const handleVote = async (id, choix) => {
     const prev = userVotes[id];
@@ -239,13 +248,13 @@ setTimeout(() => setLoading(false), 5000);
         <ProfilScreen
           myPosts={myPosts}
           votedCount={votedCount}
-          streak={3}
           userVotes={userVotes}
           feed={feed}
           onVote={handleVote}
           user={user}
           onSignOut={handleSignOut}
           pseudo={pseudo}
+          onPseudoChange={setPseudo}
         />
       )}
 
@@ -272,10 +281,4 @@ const styles = StyleSheet.create({
   navItem:     { alignItems: 'center', gap: 3, position: 'relative' },
   navIcon:     { fontSize: 20 },
   navLabel:    { fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
-  streakDot:   { position: 'absolute', top: -4, right: -10, backgroundColor: '#e8a0a8', borderRadius: 8, width: 15, height: 15, alignItems: 'center', justifyContent: 'center' },
-  streakText:  { fontSize: 8, fontWeight: '800', color: '#fff' },
-  toast:       { position: 'absolute', top: 54, right: 16, backgroundColor: '#1a1714', borderRadius: 14, padding: 12, zIndex: 999, maxWidth: 200, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 8 },
-  toastText:   { color: '#fff', fontSize: 13, fontWeight: '700' },
-  fomo:        { position: 'absolute', top: 54, right: 16, backgroundColor: '#e8a0a8', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, zIndex: 998 },
-  fomoText:    { color: '#fff', fontSize: 12, fontWeight: '800' },
 });

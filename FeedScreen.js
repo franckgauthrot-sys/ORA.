@@ -69,12 +69,13 @@ function DilemmeCard({ d, onVote, userVotes }) {
   const pctB  = 100 - pctA;
   const barA  = useRef(new Animated.Value(0)).current;
   const barB  = useRef(new Animated.Value(0)).current;
+  const barPos = useRef(new Animated.Value(50)).current;
   const [revealing, setRevealing] = useState(false);
   const [revealed,  setRevealed]  = useState(!!voted);
   const [showPlus,  setShowPlus]  = useState(false);
-  const plusAnim   = useRef(new Animated.Value(0)).current;
+  const [showNumber, setShowNumber] = useState(!!voted);
+  const plusAnim    = useRef(new Animated.Value(0)).current;
   const perfectAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
@@ -85,29 +86,44 @@ function DilemmeCard({ d, onVote, userVotes }) {
   const perfLabel = isPerfect ? '🎯 DILEMME PARFAIT !' : perfScore <= 5 ? '🔥 Très proche !' : perfScore <= 15 ? '👌 Pas mal !' : '💪 Continue !';
 
   useEffect(() => {
-  if (isPerfect && revealed) {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(perfectAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(perfectAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
-      ])
-    ).start();
-  } else {
-    perfectAnim.setValue(0);
-  }
-}, [isPerfect, revealed]);
+    if (isPerfect && revealed) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(perfectAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+          Animated.timing(perfectAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      perfectAnim.setValue(0);
+    }
+  }, [isPerfect, revealed]);
 
   const animateBars = (pA, pB) => {
-    barA.setValue(0);
-    barB.setValue(0);
-    Animated.parallel([
-      Animated.timing(barA, { toValue: pA, duration: 900, useNativeDriver: false }),
-      Animated.timing(barB, { toValue: pB, duration: 900, useNativeDriver: false }),
-    ]).start();
-  };
+  barPos.setValue(50);
+  Animated.sequence([
+    Animated.timing(barPos, { toValue: 80, duration: 500, useNativeDriver: false }),
+    Animated.timing(barPos, { toValue: 20, duration: 800, useNativeDriver: false }),
+    Animated.timing(barPos, { toValue: 70, duration: 500, useNativeDriver: false }),
+    Animated.timing(barPos, { toValue: 30, duration: 600, useNativeDriver: false }),
+    Animated.timing(barPos, { toValue: 60, duration: 400, useNativeDriver: false }),
+    Animated.timing(barPos, { toValue: 40, duration: 400, useNativeDriver: false }),
+    Animated.timing(barPos, { toValue: pA, duration: 700, useNativeDriver: false }),
+  ]).start();
+};
 
   useEffect(() => {
-    if (voted && revealed) animateBars(pctA, pctB);
+    if (voted && revealed) {
+      if (isParfait) {
+        animateBars(pctA, pctB);
+      } else {
+        barA.setValue(0);
+        barB.setValue(0);
+        Animated.parallel([
+          Animated.timing(barA, { toValue: pctA, duration: 900, useNativeDriver: false }),
+          Animated.timing(barB, { toValue: pctB, duration: 900, useNativeDriver: false }),
+        ]).start();
+      }
+    }
   }, [voted, pctA, pctB, revealed]);
 
   useEffect(() => {
@@ -121,11 +137,16 @@ function DilemmeCard({ d, onVote, userVotes }) {
   }, [revealing]);
 
   const handleVote = (id, choix) => {
-    onVote(id, choix);
-    setRevealing(true);
-    setTimeout(() => {
-      setRevealing(false);
-      setRevealed(true);
+  setShowNumber(false); // ← reset ici
+  onVote(id, choix);
+  setRevealing(true);
+  setTimeout(() => {
+    setRevealing(false);
+    setRevealed(true);
+    setShowNumber(true);
+      if (isParfait) {
+        animateBars(pctA, pctB);
+      }
       setShowPlus(true);
       plusAnim.setValue(0);
       Animated.sequence([
@@ -138,7 +159,16 @@ function DilemmeCard({ d, onVote, userVotes }) {
   const handleChangeVote = (key) => {
     if (voted === key) return;
     onVote(d.id, key);
-    animateBars(pctA, pctB);
+    if (isParfait) {
+      animateBars(pctA, pctB);
+    } else {
+      barA.setValue(0);
+      barB.setValue(0);
+      Animated.parallel([
+        Animated.timing(barA, { toValue: pctA, duration: 900, useNativeDriver: false }),
+        Animated.timing(barB, { toValue: pctB, duration: 900, useNativeDriver: false }),
+      ]).start();
+    }
   };
 
   const handleAnnuler = () => {
@@ -146,6 +176,7 @@ function DilemmeCard({ d, onVote, userVotes }) {
     setRevealed(false);
     barA.setValue(0);
     barB.setValue(0);
+    barPos.setValue(50);
   };
 
   const handleShare = async () => {
@@ -229,9 +260,7 @@ function DilemmeCard({ d, onVote, userVotes }) {
       ) : (
         <View>
           {isParfait ? (
-            /* Barre 50/50 avec cercle flottant */
             <View style={{ marginVertical: 8 }}>
-              {/* Labels options */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
                   {voted === 'A' && <View style={[styles.myVoteBadge, { backgroundColor: P.rose }]}><Text style={styles.myVoteText}>✓</Text></View>}
@@ -247,61 +276,60 @@ function DilemmeCard({ d, onVote, userVotes }) {
                 <Text style={{ fontSize: 13, fontWeight: '900', color: P.tealDeep, marginLeft: 8 }}>{pctB}%</Text>
               </View>
 
-              {/* Barre avec cercle flottant */}
               <View style={{ paddingTop: 28 }}>
-  {/* Cercle flottant */}
-  <Animated.View style={{
-    position: 'absolute',
-    top: 0,
-    left: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['100%', '50%', '0%'] }),    marginLeft: -20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: barA.interpolate({
-      inputRange: [0, 35, 50, 65, 100],
-      outputRange: ['#e8943a', '#d4a800', '#f0c000', '#d4a800', '#4db8a8'],    }),
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    zIndex: 10,
-  }}>
-    <Animated.Text style={{ fontSize: isPerfect ? 14 : 10, fontWeight: '900', color: '#fff' }}>
-  {isPerfect ? '🎯' : (pctA >= 50 ? `${pctA}%` : `${pctB}%`)}
-</Animated.Text>
-  </Animated.View>
+                <Animated.View style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: barPos.interpolate({ inputRange: [0, 50, 100], outputRange: ['100%', '50%', '0%'] }),
+                  marginLeft: -20,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: barPos.interpolate({
+                    inputRange: [0, 35, 50, 65, 100],
+                    outputRange: ['#4db8a8', '#d4a800', '#f0c000', '#d4a800', '#e8943a'],
+                  }),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  zIndex: 10,
+                }}>
+                  <Text style={{ fontSize: isPerfect ? 14 : 10, fontWeight: '900', color: '#fff' }}>
+                     {showNumber && !revealing ? (isPerfect ? '🎯' : (pctA >= 50 ? `${pctA}%` : `${pctB}%`)) : ''}
+                  </Text>
+                </Animated.View>
 
-  {/* Barre de fond */}
-  <View style={{ height: 12, borderRadius: 999, backgroundColor: '#f0ece6', overflow: 'hidden', position: 'relative' }}>
-    <Animated.View style={{
-      position: 'absolute',
-      height: '100%',
-      borderRadius: 999,
-      backgroundColor: barA.interpolate({
-        inputRange: [0, 35, 50, 65, 100],
-outputRange: ['#e8943a', '#d4a800', '#f0c000', '#d4a800', '#4db8a8'],      }),
-      left: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['50%', '50%', '0%'] }),
-      right: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['0%', '50%', '50%'] }),
-    }} />
-    {/* Trait central exactement au milieu */}
-    <View style={{
-      position: 'absolute',
-      left: '50%',
-      marginLeft: -1,
-      width: 2,
-      height: 12,
-      backgroundColor: '#c0b8b0',
-      zIndex: 2,
-    }} />
-  </View>
-</View>
+                <View style={{ height: 12, borderRadius: 999, backgroundColor: '#f0ece6', overflow: 'hidden', position: 'relative' }}>
+                  <Animated.View style={{
+                    position: 'absolute',
+                    height: '100%',
+                    borderRadius: 999,
+                    backgroundColor: barPos.interpolate({
+                      inputRange: [0, 35, 50, 65, 100],
+                      outputRange: ['#4db8a8', '#d4a800', '#f0c000', '#d4a800', '#e8943a'],
+                    }),
+                    left: barPos.interpolate({ inputRange: [0, 50, 100], outputRange: ['50%', '50%', '0%'] }),
+                    right: barPos.interpolate({ inputRange: [0, 50, 100], outputRange: ['0%', '50%', '50%'] }),
+                  }} />
+                  <View style={{
+                    position: 'absolute',
+                    left: '50%',
+                    marginLeft: -1,
+                    width: 2,
+                    height: 12,
+                    backgroundColor: '#c0b8b0',
+                    zIndex: 2,
+                  }} />
+                </View>
+              </View>
+
               <Text style={[styles.totalVotes, { marginTop: 16 }]}>{total.toLocaleString()} votes</Text>
               <Text style={[styles.majorityMsg, { color: '#c07800', marginTop: 4 }]}>{perfLabel}</Text>
             </View>
           ) : (
-            /* Barres normales */
             <>
               {[
                 { label: d.optionA, key: 'A', pct: pctA, color: P.rose, deep: P.roseDeep, track: P.roseLight, bar: barA },
@@ -388,19 +416,21 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
       </View>
 
       <View style={styles.fixedTabs}>
-        {[
-          { id: 'trending', label: '🔥 Trending' },
-          { id: 'parfait',  label: '🎯 Dilemme Parfait' },
-        ].map(tab => {
-          const active = activeTab === tab.id;
-          return (
-            <TouchableOpacity key={tab.id} onPress={() => onTabChange(activeTab === tab.id ? '' : tab.id)}
-              style={[styles.tab, { backgroundColor: active ? (tab.id === 'trending' ? '#e8a0a8' : '#1a1714') : '#ffffff', borderColor: active ? 'transparent' : '#e0dbd2' }]}>
-              <Text style={[styles.tabText, { color: active ? '#fff' : '#6a6058' }]}>{tab.label.toUpperCase()}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+  {[
+    { id: 'trending', label: '🔥 Trending' },
+    { id: 'parfait',  label: '🎯 Dilemme Parfait' },
+  ].map(tab => {
+    const active = activeTab === tab.id;
+    const bgColor = !active ? '#ffffff' : tab.id === 'trending' ? '#e8a0a8' : '#f0c000';
+    const textColor = !active ? '#6a6058' : tab.id === 'parfait' ? '#7a5800' : '#fff';
+    return (
+      <TouchableOpacity key={tab.id} onPress={() => onTabChange(activeTab === tab.id ? '' : tab.id)}
+        style={[styles.tab, { backgroundColor: bgColor, borderColor: active ? 'transparent' : '#e0dbd2' }]}>
+        <Text style={[styles.tabText, { color: textColor }]}>{tab.label.toUpperCase()}</Text>
+      </TouchableOpacity>
+    );
+  })}
+</View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabsContent}>
         {CATEGORIES.map(cat => {
@@ -409,7 +439,7 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
           return (
             <TouchableOpacity key={cat.id} onPress={() => onTabChange(activeTab === cat.id ? '' : cat.id)}
               style={[styles.tab, { backgroundColor: active ? cs.bg : '#ffffff', borderColor: active ? cs.text : '#e0dbd2' }]}>
-              <Text style={[styles.tabText, { color: active ? cs.text : '#6a6058' }]}>{cat.label.toUpperCase()}</Text>
+        <Text style={[styles.tabText, { color: active ? cs.text : '#6a6058' }]}>{cat.label.toUpperCase()}</Text>
             </TouchableOpacity>
           );
         })}

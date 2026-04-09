@@ -3,6 +3,9 @@ import 'react-native-get-random-values';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const getUserId = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user?.id) return session.user.id;
+  // Fallback sur l'ancien système
   try {
     let id = await AsyncStorage.getItem('ora_user_id');
     if (!id) {

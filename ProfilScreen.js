@@ -1,5 +1,6 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, TextInput, Modal } from 'react-native';
 import { useState, useRef, useEffect } from 'react';
+import { supabase } from './supabase';
 
 const P = {
   bg:         '#f2f0eb',
@@ -73,7 +74,6 @@ function MiniCard({ d, userVotes, onVote }) {
 
       {isParfait ? (
         <View style={{ marginBottom: 10 }}>
-          {/* Labels options */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
               {voted === 'A' && <View style={[styles.myVoteBadge, { backgroundColor: '#4db8a8' }]}><Text style={styles.myVoteText}>✓</Text></View>}
@@ -89,40 +89,27 @@ function MiniCard({ d, userVotes, onVote }) {
             <Text style={{ fontSize: 13, fontWeight: '900', color: '#b86820', marginLeft: 8 }}>{pctB}%</Text>
           </View>
 
-          {/* Barre avec cercle flottant */}
           <View style={{ paddingTop: 28 }}>
-            {/* Cercle flottant */}
             <Animated.View style={{
-              position: 'absolute',
-              top: 0,
+              position: 'absolute', top: 0,
               left: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['100%', '50%', '0%'] }),
-              marginLeft: -20,
-              width: 40,
-              height: 40,
-              borderRadius: 20,
+              marginLeft: -20, width: 40, height: 40, borderRadius: 20,
               backgroundColor: barA.interpolate({
                 inputRange: [0, 35, 50, 65, 100],
                 outputRange: ['#e8943a', '#d4a800', '#f0c000', '#d4a800', '#4db8a8'],
               }),
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.2,
-              shadowRadius: 4,
-              zIndex: 10,
+              alignItems: 'center', justifyContent: 'center',
+              shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2, shadowRadius: 4, zIndex: 10,
             }}>
               <Text style={{ fontSize: isPerfect ? 14 : 10, fontWeight: '900', color: '#fff' }}>
-                {isPerfect ? '✨' : (pctA >= 50 ? `${pctA}%` : `${pctB}%`)}
+                {isPerfect ? '🎯' : (pctA >= 50 ? `${pctA}%` : `${pctB}%`)}
               </Text>
             </Animated.View>
 
-            {/* Barre de fond */}
             <View style={{ height: 12, borderRadius: 999, backgroundColor: '#f0ece6', overflow: 'hidden', position: 'relative' }}>
               <Animated.View style={{
-                position: 'absolute',
-                height: '100%',
-                borderRadius: 999,
+                position: 'absolute', height: '100%', borderRadius: 999,
                 backgroundColor: barA.interpolate({
                   inputRange: [0, 35, 50, 65, 100],
                   outputRange: ['#e8943a', '#d4a800', '#f0c000', '#d4a800', '#4db8a8'],
@@ -130,16 +117,7 @@ function MiniCard({ d, userVotes, onVote }) {
                 left: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['50%', '50%', '0%'] }),
                 right: barA.interpolate({ inputRange: [0, 50, 100], outputRange: ['0%', '50%', '50%'] }),
               }} />
-              {/* Trait central */}
-              <View style={{
-                position: 'absolute',
-                left: '50%',
-                marginLeft: -1,
-                width: 2,
-                height: 12,
-                backgroundColor: '#c0b8b0',
-                zIndex: 2,
-              }} />
+              <View style={{ position: 'absolute', left: '50%', marginLeft: -1, width: 2, height: 12, backgroundColor: '#c0b8b0', zIndex: 2 }} />
             </View>
           </View>
 
@@ -188,15 +166,83 @@ function MiniCard({ d, userVotes, onVote }) {
   );
 }
 
-export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onVote, user, onSignOut, pseudo }) {
+export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onVote, user, onSignOut, pseudo, onPseudoChange }) {
   const [tab, setTab] = useState('votes');
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [editingPseudo, setEditingPseudo] = useState(false);
+  const [newPseudo, setNewPseudo] = useState(pseudo || '');
+  const [savingPseudo, setSavingPseudo] = useState(false);
+
   const votedDilemmes = feed ? feed.filter(d => userVotes[d.id]) : [];
   const displayName = pseudo || user?.email?.split('@')[0] || 'Toi';
   const initiale = displayName[0].toUpperCase();
 
+  const handleSavePseudo = async () => {
+    if (newPseudo.trim().length < 2) return;
+    setSavingPseudo(true);
+    try {
+      await supabase
+        .from('profiles')
+        .upsert({ id: user.id, email: user.email, pseudo: newPseudo.trim() }, { onConflict: 'id' });
+      onPseudoChange(newPseudo.trim());
+      setEditingPseudo(false);
+      setMenuVisible(false);
+    } catch (e) {
+      console.log('Erreur pseudo:', e);
+    } finally {
+      setSavingPseudo(false);
+    }
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.logo}>ORA<Text style={{ color: P.teal }}>.</Text></Text>
+
+      {/* Header avec menu ⋮ */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <Text style={styles.logo}>ORA<Text style={{ color: P.teal }}>.</Text></Text>
+        <TouchableOpacity onPress={() => setMenuVisible(!menuVisible)} style={styles.menuBtn}>
+          <Text style={styles.menuIcon}>⋮</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Menu contextuel */}
+      {menuVisible && (
+        <View style={styles.menuCard}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => { setEditingPseudo(true); setMenuVisible(false); }}>
+            <Text style={styles.menuItemText}>✏️  Modifier le pseudo</Text>
+          </TouchableOpacity>
+          <View style={styles.menuDivider} />
+          <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); onSignOut(); }}>
+            <Text style={[styles.menuItemText, { color: '#e05050' }]}>🚪  Se déconnecter</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Modal modifier pseudo */}
+      <Modal visible={editingPseudo} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setEditingPseudo(false)}>
+          <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
+            <Text style={styles.modalTitle}>Modifier le pseudo</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newPseudo}
+              onChangeText={setNewPseudo}
+              placeholder="Ton nouveau pseudo"
+              placeholderTextColor={P.textLight}
+              maxLength={20}
+              autoFocus
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: P.cardBorder, flex: 1 }]} onPress={() => setEditingPseudo(false)}>
+                <Text style={{ fontWeight: '700', color: P.textMid }}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: P.teal, flex: 1 }]} onPress={handleSavePseudo}>
+                <Text style={{ fontWeight: '700', color: '#fff' }}>{savingPseudo ? '...' : 'Sauvegarder'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <View style={styles.profileRow}>
         <View style={styles.avatar}>
@@ -247,9 +293,6 @@ export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onV
             })
       )}
 
-      <TouchableOpacity onPress={onSignOut} style={styles.signOutBtn}>
-        <Text style={styles.signOutText}>Se déconnecter</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -257,7 +300,18 @@ export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onV
 const styles = StyleSheet.create({
   container:    { flex: 1, backgroundColor: P.bg },
   content:      { padding: 20, paddingTop: 60, paddingBottom: 100 },
-  logo:         { fontSize: 30, fontWeight: '900', color: P.text, letterSpacing: -1, marginBottom: 24 },
+  logo:         { fontSize: 30, fontWeight: '900', color: P.text, letterSpacing: -1 },
+  menuBtn:      { padding: 8 },
+  menuIcon:     { fontSize: 24, color: P.textMid, fontWeight: '900' },
+  menuCard:     { position: 'absolute', top: 70, right: 20, backgroundColor: P.card, borderRadius: 14, borderWidth: 1.5, borderColor: P.cardBorder, zIndex: 100, minWidth: 200, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+  menuItem:     { padding: 16 },
+  menuItemText: { fontSize: 14, fontWeight: '700', color: P.text },
+  menuDivider:  { height: 1, backgroundColor: P.cardBorder },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  modalCard:    { backgroundColor: P.card, borderRadius: 20, padding: 24, width: '85%' },
+  modalTitle:   { fontSize: 18, fontWeight: '900', color: P.text, marginBottom: 16 },
+  modalInput:   { backgroundColor: P.bg, borderRadius: 11, padding: 14, fontSize: 14, color: P.text, borderWidth: 1.5, borderColor: P.cardBorder },
+  modalBtn:     { padding: 14, borderRadius: 11, alignItems: 'center' },
   profileRow:   { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
   avatar:       { width: 56, height: 56, borderRadius: 28, backgroundColor: P.teal, alignItems: 'center', justifyContent: 'center' },
   avatarText:   { fontSize: 22, fontWeight: '900', color: '#fff' },
@@ -286,6 +340,4 @@ const styles = StyleSheet.create({
   changeRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: P.cardBorder },
   changeBtn:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 2 },
   annuler:      { fontSize: 11, color: P.textLight, fontWeight: '600' },
-  signOutBtn:   { marginTop: 32, padding: 16, borderRadius: 14, borderWidth: 1.5, borderColor: P.cardBorder, alignItems: 'center' },
-  signOutText:  { fontSize: 14, fontWeight: '700', color: P.textLight },
 });
