@@ -182,8 +182,7 @@ const pctB  = total === 0 ? 0 : 100 - pctA;
     const pA = t === 0 ? 50 : Math.round((d.votesA / t) * 100);
     const pB = 100 - pA;
     await Share.share({
-      message: `ORA. — Dilemme\n\n"${d.question}"\n\n${d.optionA} ${pA}% vs ${d.optionB} ${pB}%\n\n${t} votes — Et toi tu choisirais quoi ?`,
-    });
+message: `🎯 ORA. — "${d.question}"\n\n${d.optionA} ${pA}% vs ${d.optionB} ${pB}%\n\n${t} votes — Et toi tu choisirais quoi ?\n\nTélécharge ORA sur l'App Store !`,    });
   };
 
   const handleSignaler = () => {

@@ -20,22 +20,34 @@ const P = {
 };
 
 const BADGES = [
-  { label: 'Premier vote', icon: '🗳', condition: (v, p) => v >= 1 },
-  { label: 'Posteur',      icon: '✍️', condition: (v, p) => p >= 1 },
-  { label: 'Série x3',    icon: '🔥', condition: (v, p) => v >= 3 },
-  { label: 'Top voteur',  icon: '⭐', condition: (v, p) => v >= 5 },
+  // Votes donnés
+  { label: 'Premier vote',   icon: '🗳️',  desc: 'Voter pour la première fois',         condition: (v, p, pf, vr) => v >= 1 },
+  { label: 'Série x3',       icon: '🔥',  desc: 'Voter 3 fois',                         condition: (v, p, pf, vr) => v >= 3 },
+  { label: 'Top voteur',     icon: '⭐',  desc: 'Voter 10 fois',                        condition: (v, p, pf, vr) => v >= 10 },
+  { label: 'Mega voteur',    icon: '💎',  desc: 'Voter 50 fois',                        condition: (v, p, pf, vr) => v >= 50 },
+  { label: 'Légende',        icon: '👑',  desc: 'Voter 100 fois',                       condition: (v, p, pf, vr) => v >= 100 },
+  // Dilemmes postés
+  { label: 'Posteur',        icon: '✍️',  desc: 'Poster son premier dilemme',           condition: (v, p, pf, vr) => p >= 1 },
+  { label: 'Narrateur',      icon: '📝',  desc: 'Poster 5 dilemmes',                    condition: (v, p, pf, vr) => p >= 5 },
+  { label: 'Conteur',        icon: '🎭',  desc: 'Poster 20 dilemmes',                   condition: (v, p, pf, vr) => p >= 20 },
+  // Dilemmes parfaits
+  { label: 'Dilemme Parfait',icon: '🎯',  desc: 'Créer un dilemme parfait',             condition: (v, p, pf, vr) => pf >= 1 },
+  { label: 'Maître du 50/50',icon: '💫',  desc: 'Créer 3 dilemmes parfaits',            condition: (v, p, pf, vr) => pf >= 3 },
+  // Votes reçus
+  { label: 'Populaire',      icon: '🌟',  desc: 'Recevoir 10 votes sur ses dilemmes',   condition: (v, p, pf, vr) => vr >= 10 },
+  { label: 'Viral',          icon: '🚀',  desc: 'Recevoir 100 votes sur ses dilemmes',  condition: (v, p, pf, vr) => vr >= 100 },
 ];
 
 function MiniCard({ d, userVotes, onVote }) {
   const voted = userVotes[d.id];
   const total = d.votesA + d.votesB;
   const pctA  = total ? Math.round((d.votesA / total) * 100) : 0;
-const pctB  = total ? 100 - pctA : 0;
+  const pctB  = total ? 100 - pctA : 0;
   const barA  = useRef(new Animated.Value(0)).current;
   const barB  = useRef(new Animated.Value(0)).current;
   const isParfait = d.categories?.includes('parfait');
   const perfScore = Math.abs(pctA - 50);
-  const isPerfect = isParfait && perfScore <= 2;
+  const isPerfect = isParfait && perfScore <= 2 && total > 0;
   const perfectAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -57,8 +69,6 @@ const pctB  = total ? 100 - pctA : 0;
       perfectAnim.setValue(0);
     }
   }, [isPerfect]);
-
-  const perfLabel = isPerfect ? '🎯 DILEMME PARFAIT !' : perfScore <= 5 ? '🔥 Très proche !' : perfScore <= 15 ? '👌 Pas mal !' : '💪 Continue !';
 
   return (
     <Animated.View style={[styles.card, isPerfect ? {
@@ -122,13 +132,13 @@ const pctB  = total ? 100 - pctA : 0;
           </View>
 
           <Text style={{ fontSize: 11, color: P.textLight, textAlign: 'center', marginTop: 16 }}>{total.toLocaleString()} votes</Text>
-{isPerfect && (
-  <View style={{ alignItems: 'center', marginTop: 8 }}>
-    <View style={{ backgroundColor: '#f0c000', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5 }}>
-      <Text style={{ fontSize: 12, fontWeight: '900', color: '#7a5800' }}>🎯 DILEMME PARFAIT</Text>
-    </View>
-  </View>
-)}
+          {isPerfect && (
+            <View style={{ alignItems: 'center', marginTop: 8 }}>
+              <View style={{ backgroundColor: '#f0c000', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5 }}>
+                <Text style={{ fontSize: 12, fontWeight: '900', color: '#7a5800' }}>🎯 DILEMME PARFAIT</Text>
+              </View>
+            </View>
+          )}
         </View>
       ) : (
         [
@@ -172,7 +182,7 @@ const pctB  = total ? 100 - pctA : 0;
   );
 }
 
-export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onVote, user, onSignOut, pseudo, onPseudoChange }) {
+export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onVote, user, onSignOut, pseudo, onPseudoChange, newVoteDilemmes, onVoteSeen }) {
   const [tab, setTab] = useState('votes');
   const [menuVisible, setMenuVisible] = useState(false);
   const [editingPseudo, setEditingPseudo] = useState(false);
@@ -182,6 +192,19 @@ export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onV
   const votedDilemmes = feed ? feed.filter(d => userVotes[d.id]) : [];
   const displayName = pseudo || user?.email?.split('@')[0] || 'Toi';
   const initiale = displayName[0].toUpperCase();
+
+  // Calculs pour les badges
+  const parfaitsCount = feed?.filter(d =>
+    d.categories?.includes('parfait') &&
+    d.user_id === user?.id &&
+    Math.abs((d.votesA / ((d.votesA + d.votesB) || 1) * 100) - 50) <= 2 &&
+    (d.votesA + d.votesB) > 0
+  ).length || 0;
+
+  const votesRecus = myPosts.reduce((acc, d) => {
+    const live = feed?.find(x => x.id === d.id) || d;
+    return acc + (live.votesA || 0) + (live.votesB || 0);
+  }, 0);
 
   const handleSavePseudo = async () => {
     if (newPseudo.trim().length < 2) return;
@@ -258,33 +281,21 @@ export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onV
           <Text style={styles.name}>{displayName}</Text>
           <Text style={styles.email}>{user?.email}</Text>
           <Text style={styles.stats}>
-              {myPosts.length} posté{myPosts.length > 1 ? 's' : ''} · {votedCount} vote{votedCount > 1 ? 's' : ''} · 
-{feed?.filter(d => d.categories?.includes('parfait') && 
-  d.user_id === user?.id &&
-  Math.abs((d.votesA/(d.votesA+d.votesB||1)*100) - 50) <= 2 && 
-  (d.votesA + d.votesB) > 0
-).length || 0} 🎯
-          </Text>
+{votedCount} vote{votedCount > 1 ? 's' : ''} · {myPosts.length} dilemme{myPosts.length > 1 ? 's' : ''} · {parfaitsCount} 🎯          </Text>
         </View>
       </View>
 
-      <View style={styles.badges}>
-        {BADGES.map((b, i) => {
-          const earned = b.condition(votedCount, myPosts.length);
-          return (
-            <View key={i} style={[styles.badge, { backgroundColor: earned ? P.roseLight : P.bg, borderColor: earned ? P.rose : P.cardBorder, opacity: earned ? 1 : 0.4 }]}>
-              <Text style={styles.badgeIcon}>{b.icon}</Text>
-              <Text style={[styles.badgeLabel, { color: earned ? P.roseDeep : P.textLight }]}>{b.label.toUpperCase()}</Text>
-            </View>
-          );
-        })}
-      </View>
-
+      {/* Tabs */}
       <View style={styles.tabs}>
-        {[['votes', 'Mes votes'], ['posts', 'Mes dilemmes']].map(([id, label]) => (
+        {[['votes', 'Mes votes'], ['posts', 'Mes dilemmes'], ['badges', 'Mes badges']].map(([id, label]) => (
           <TouchableOpacity key={id} onPress={() => setTab(id)}
             style={[styles.tab, { backgroundColor: tab === id ? P.text : P.card, borderColor: tab === id ? 'transparent' : P.cardBorder }]}>
-            <Text style={[styles.tabText, { color: tab === id ? '#fff' : P.textMid }]}>{label.toUpperCase()}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={[styles.tabText, { color: tab === id ? '#fff' : P.textMid }]}>{label.toUpperCase()}</Text>
+              {id === 'posts' && newVoteDilemmes?.length > 0 && (
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#e8503a' }} />
+              )}
+            </View>
           </TouchableOpacity>
         ))}
       </View>
@@ -300,55 +311,96 @@ export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onV
           ? <Text style={styles.empty}>Tu n'as pas encore posté 🌵</Text>
           : myPosts.map(d => {
               const live = feed?.find(x => x.id === d.id) || d;
-              return <MiniCard key={d.id} d={live} userVotes={userVotes} onVote={onVote} />;
+              const hasNew = newVoteDilemmes?.includes(d.id);
+              return (
+                <TouchableOpacity key={d.id} onPress={() => onVoteSeen?.(d.id)} activeOpacity={1}>
+                  <View style={{ position: 'relative' }}>
+                    {hasNew && (
+                      <View style={{ position: 'absolute', top: 10, right: 10, width: 10, height: 10, borderRadius: 5, backgroundColor: '#e8503a', zIndex: 10 }} />
+                    )}
+                    <MiniCard d={live} userVotes={userVotes} onVote={onVote} />
+                  </View>
+                </TouchableOpacity>
+              );
             })
       )}
+
+      {tab === 'badges' && (
+  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+    {BADGES.map((b, i) => {
+      const earned = b.condition(votedCount, myPosts.length, parfaitsCount, votesRecus);
+      return (
+        <View key={i} style={{
+          width: '30%',
+          backgroundColor: earned ? P.card : P.bg,
+          borderRadius: 16,
+          borderWidth: 1.5,
+          borderColor: earned ? P.teal : P.cardBorder,
+          padding: 12,
+          alignItems: 'center',
+          gap: 6,
+          opacity: earned ? 1 : 0.5,
+        }}>
+          <Text style={{ fontSize: 32 }}>{earned ? b.icon : '🔒'}</Text>
+          <Text style={{ fontSize: 9, fontWeight: '800', color: earned ? P.text : P.textLight, textAlign: 'center', letterSpacing: 0.3 }}>{b.label.toUpperCase()}</Text>
+          <Text style={{ fontSize: 9, color: P.textLight, textAlign: 'center', lineHeight: 13 }}>{b.desc}</Text>
+          {earned && (
+            <View style={{ backgroundColor: P.roseLight, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+              <Text style={{ fontSize: 9, fontWeight: '800', color: P.roseDeep }}>DÉBLOQUÉ</Text>
+            </View>
+          )}
+        </View>
+      );
+    })}
+  </View>
+)}
 
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: P.bg },
-  content:      { padding: 20, paddingTop: 60, paddingBottom: 100 },
-  logo:         { fontSize: 30, fontWeight: '900', color: P.text, letterSpacing: -1 },
-  menuBtn:      { padding: 8 },
-  menuIcon:     { fontSize: 24, color: P.textMid, fontWeight: '900' },
-  menuCard:     { position: 'absolute', top: 70, right: 20, backgroundColor: P.card, borderRadius: 14, borderWidth: 1.5, borderColor: P.cardBorder, zIndex: 100, minWidth: 200, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
-  menuItem:     { padding: 16 },
-  menuItemText: { fontSize: 14, fontWeight: '700', color: P.text },
-  menuDivider:  { height: 1, backgroundColor: P.cardBorder },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modalCard:    { backgroundColor: P.card, borderRadius: 20, padding: 24, width: '85%' },
-  modalTitle:   { fontSize: 18, fontWeight: '900', color: P.text, marginBottom: 16 },
-  modalInput:   { backgroundColor: P.bg, borderRadius: 11, padding: 14, fontSize: 14, color: P.text, borderWidth: 1.5, borderColor: P.cardBorder },
-  modalBtn:     { padding: 14, borderRadius: 11, alignItems: 'center' },
-  profileRow:   { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
-  avatar:       { width: 56, height: 56, borderRadius: 28, backgroundColor: P.teal, alignItems: 'center', justifyContent: 'center' },
-  avatarText:   { fontSize: 22, fontWeight: '900', color: '#fff' },
-  name:         { fontSize: 18, fontWeight: '800', color: P.text },
-  email:        { fontSize: 11, color: P.textLight, marginTop: 2 },
-  stats:        { fontSize: 12, color: P.textLight, marginTop: 4 },
-  badges:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
-  badge:        { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 8, borderWidth: 1.5 },
-  badgeIcon:    { fontSize: 13 },
-  badgeLabel:   { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  tabs:         { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  tab:          { flex: 1, padding: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1.5 },
-  tabText:      { fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
-  empty:        { textAlign: 'center', color: P.textLight, fontSize: 14, marginTop: 60, lineHeight: 28 },
-  card:         { backgroundColor: P.card, borderRadius: 20, padding: 20, marginBottom: 14, borderWidth: 1.5, borderColor: P.cardBorder },
-  cardAuteur:   { fontSize: 12, fontWeight: '700', color: P.text, marginBottom: 4 },
-  cardQuestion: { fontSize: 15, fontWeight: '700', color: P.text, lineHeight: 22, marginBottom: 14 },
-  barRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
-  barLabel:     { fontSize: 12, fontWeight: '700', flex: 1 },
-  barPct:       { fontSize: 13, fontWeight: '900' },
-  track:        { height: 9, borderRadius: 999, overflow: 'hidden' },
-  bar:          { height: '100%', borderRadius: 999 },
-  totalVotes:   { fontSize: 11, color: P.textLight, textAlign: 'center', marginTop: 8 },
-  myVoteBadge:  { borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  myVoteText:   { fontSize: 10, fontWeight: '800', color: '#fff' },
-  changeRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: P.cardBorder },
-  changeBtn:    { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 2 },
-  annuler:      { fontSize: 11, color: P.textLight, fontWeight: '600' },
+  container:      { flex: 1, backgroundColor: P.bg },
+  content:        { padding: 20, paddingTop: 60, paddingBottom: 100 },
+  logo:           { fontSize: 30, fontWeight: '900', color: P.text, letterSpacing: -1 },
+  menuBtn:        { padding: 8 },
+  menuIcon:       { fontSize: 24, color: P.textMid, fontWeight: '900' },
+  menuCard:       { position: 'absolute', top: 70, right: 20, backgroundColor: P.card, borderRadius: 14, borderWidth: 1.5, borderColor: P.cardBorder, zIndex: 100, minWidth: 200, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+  menuItem:       { padding: 16 },
+  menuItemText:   { fontSize: 14, fontWeight: '700', color: P.text },
+  menuDivider:    { height: 1, backgroundColor: P.cardBorder },
+  modalOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  modalCard:      { backgroundColor: P.card, borderRadius: 20, padding: 24, width: '85%' },
+  modalTitle:     { fontSize: 18, fontWeight: '900', color: P.text, marginBottom: 16 },
+  modalInput:     { backgroundColor: P.bg, borderRadius: 11, padding: 14, fontSize: 14, color: P.text, borderWidth: 1.5, borderColor: P.cardBorder },
+  modalBtn:       { padding: 14, borderRadius: 11, alignItems: 'center' },
+  profileRow:     { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
+  avatar:         { width: 56, height: 56, borderRadius: 28, backgroundColor: P.teal, alignItems: 'center', justifyContent: 'center' },
+  avatarText:     { fontSize: 22, fontWeight: '900', color: '#fff' },
+  name:           { fontSize: 18, fontWeight: '800', color: P.text },
+  email:          { fontSize: 11, color: P.textLight, marginTop: 2 },
+  stats:          { fontSize: 12, color: P.textLight, marginTop: 4 },
+  tabs:           { flexDirection: 'row', gap: 6, marginBottom: 20 },
+  tab:            { flex: 1, padding: 9, borderRadius: 10, alignItems: 'center', borderWidth: 1.5 },
+  tabText:        { fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
+  empty:          { textAlign: 'center', color: P.textLight, fontSize: 14, marginTop: 60, lineHeight: 28 },
+  card:           { backgroundColor: P.card, borderRadius: 20, padding: 20, marginBottom: 14, borderWidth: 1.5, borderColor: P.cardBorder },
+  cardAuteur:     { fontSize: 12, fontWeight: '700', color: P.text, marginBottom: 4 },
+  cardQuestion:   { fontSize: 15, fontWeight: '700', color: P.text, lineHeight: 22, marginBottom: 14 },
+  barRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  barLabel:       { fontSize: 12, fontWeight: '700', flex: 1 },
+  barPct:         { fontSize: 13, fontWeight: '900' },
+  track:          { height: 9, borderRadius: 999, overflow: 'hidden' },
+  bar:            { height: '100%', borderRadius: 999 },
+  totalVotes:     { fontSize: 11, color: P.textLight, textAlign: 'center', marginTop: 8 },
+  myVoteBadge:    { borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  myVoteText:     { fontSize: 10, fontWeight: '800', color: '#fff' },
+  changeRow:      { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: P.cardBorder },
+  changeBtn:      { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 2 },
+  annuler:        { fontSize: 11, color: P.textLight, fontWeight: '600' },
+  badgeCard:      { backgroundColor: P.card, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1.5, borderColor: P.cardBorder },
+  badgeIconBox:   { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  badgeCardLabel: { fontSize: 14, fontWeight: '800', marginBottom: 3 },
+  badgeCardDesc:  { fontSize: 11, color: P.textLight },
+  badgeEarned:    { width: 22, height: 22, borderRadius: 11, backgroundColor: P.roseLight, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 
 const P = {
   bg:         '#f2f0eb',
@@ -107,15 +107,18 @@ const toggleCat = (id) => {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+
       <Text style={styles.title}>Ton dilemme</Text>
 
       <View style={styles.hint}>
-        <Text style={styles.hintText}>
-          💡 Donne assez de contexte pour que les autres comprennent.{'\n'}
-          <Text style={styles.hintExample}>"J'ai 28 ans, en couple depuis 3 ans — je pars ou je reste ?"</Text>
-        </Text>
-      </View>
+  <Text style={styles.hintText}>
+    💡 Donne assez de contexte pour que les autres comprennent au mieux ton dilemme.
+  </Text>
+</View>
 
       {/* Catégories spéciales — ligne 1 */}
       <Text style={styles.label}>TYPE</Text>
@@ -161,7 +164,6 @@ const toggleCat = (id) => {
       <Text style={[styles.label, { color: P.roseDeep }]}>OPTION A</Text>
       <TextInput
         style={[styles.input, { borderColor: optA ? P.rose : P.cardBorder }]}
-        placeholder="ex : Je quitte tout"
         placeholderTextColor={P.textLight}
         value={optA}
         onChangeText={setOptA}
@@ -170,7 +172,6 @@ const toggleCat = (id) => {
       <Text style={[styles.label, { color: P.tealDeep }]}>OPTION B</Text>
       <TextInput
         style={[styles.input, { borderColor: optB ? P.teal : P.cardBorder }]}
-        placeholder="ex : Je reste encore"
         placeholderTextColor={P.textLight}
         value={optB}
         onChangeText={setOptB}
@@ -184,7 +185,8 @@ const toggleCat = (id) => {
           Publier mon dilemme →
         </Text>
       </TouchableOpacity>
-    </ScrollView>
+  </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

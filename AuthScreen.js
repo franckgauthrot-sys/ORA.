@@ -65,7 +65,7 @@ export default function AuthScreen({ onAuth }) {
         <Text style={styles.logo}>ORA<Text style={{ color: P.teal }}>.</Text></Text>
         <Text style={styles.tagline}>MIROIR COLLECTIF</Text>
         <Text style={styles.description}>
-          Pose tes dilemmes.{'\n'}Vois comment les autres pensent.{'\n'}Tu n'es pas seul(e).
+          Pose tes dilemmes.{'\n'}Vois comment les autres pensent.
         </Text>
       </View>
 

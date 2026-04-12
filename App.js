@@ -27,6 +27,7 @@ export default function App() {
   const [user, setUser]             = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [pseudo, setPseudo]         = useState(null);
+  const [newVoteDilemmes, setNewVoteDilemmes] = useState([]); // liste des dilemme_id avec nouveaux votes
 
   const loadProfile = async (sessionUser) => {
   try {
@@ -115,12 +116,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      registerForPushNotifications(user.id);
-      const cleanup = setupNotificationListeners(() => {});
-      return cleanup;
-    }
-  }, [user]);
+  if (user) {
+    registerForPushNotifications(user.id);
+   const cleanup = setupNotificationListeners((notif) => {
+  const dilemmeId = notif?.request?.content?.data?.dilemme_id;
+  if (dilemmeId) setNewVoteDilemmes(prev => [...new Set([...prev, dilemmeId])]);
+});
+    return cleanup;
+  }
+}, [user]);
 
   const chargerDilemmes = async () => {
     try {
@@ -136,6 +140,7 @@ export default function App() {
           categories: d.categories || [],
           votesA: d.votes_a || 0,
           votesB: d.votes_b || 0,
+          user_id: d.user_id,
         }));
         setFeed(formatted);
       } else {
@@ -278,19 +283,30 @@ export default function App() {
           onSignOut={handleSignOut}
           pseudo={pseudo}
           onPseudoChange={setPseudo}
-        />
+          newVoteDilemmes={newVoteDilemmes}
+  onVoteSeen={(id) => setNewVoteDilemmes(prev => prev.filter(d => d !== id))}
+/>
+      
       )}
 
       <View style={styles.nav}>
         {navItems.map(item => {
-          const active = page === item.id;
-          return (
-            <TouchableOpacity key={item.id} style={styles.navItem} onPress={() => setPage(item.id)}>
-              <Text style={[styles.navIcon, { color: active ? P.teal : P.textMid }]}>{item.icon}</Text>
-              <Text style={[styles.navLabel, { color: active ? P.teal : P.textMid }]}>{item.label.toUpperCase()}</Text>
-            </TouchableOpacity>
-          );
-        })}
+  const active = page === item.id;
+  return (
+    <TouchableOpacity key={item.id} style={styles.navItem} onPress={() => {
+      setPage(item.id);
+if (item.id === 'profil') setNewVoteDilemmes([]);
+    }}>
+      <View>
+        <Text style={[styles.navIcon, { color: active ? P.teal : P.textMid }]}>{item.icon}</Text>
+        {item.id === 'profil' && newVoteDilemmes.length > 0 && (
+  <View style={styles.pastille} />
+)}
+      </View>
+      <Text style={[styles.navLabel, { color: active ? P.teal : P.textMid }]}>{item.label.toUpperCase()}</Text>
+    </TouchableOpacity>
+  );
+})}
       </View>
     </View>
   );
@@ -304,4 +320,5 @@ const styles = StyleSheet.create({
   navItem:     { alignItems: 'center', gap: 3, position: 'relative' },
   navIcon:     { fontSize: 20 },
   navLabel:    { fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
+  pastille: { position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: '#e8503a' },
 });
