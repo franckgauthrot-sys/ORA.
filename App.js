@@ -29,21 +29,44 @@ export default function App() {
   const [pseudo, setPseudo]         = useState(null);
 
   const loadProfile = async (sessionUser) => {
-    try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('pseudo')
-        .eq('id', sessionUser.id)
-        .maybeSingle();
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('pseudo')
+      .eq('id', sessionUser.id)
+      .maybeSingle();
 
-      if (!data) {
-        await supabase
-          .from('profiles')
-          .upsert({ id: sessionUser.id, email: sessionUser.email }, { onConflict: 'id' });
-      } else if (data?.pseudo) {
-        setPseudo(data.pseudo);
-      }
-       await chargerMesVotes(); // ← ajoute ça
+    if (!data) {
+      await supabase
+        .from('profiles')
+        .upsert({ id: sessionUser.id, email: sessionUser.email }, { onConflict: 'id' });
+    } else if (data?.pseudo) {
+      setPseudo(data.pseudo);
+    }
+    
+    await chargerMesVotes();
+
+    // Charger mes dilemmes
+    const { data: mesDilemmes } = await supabase
+      .from('dilemmes')
+      .select('*')
+      .eq('user_id', sessionUser.id)
+      .order('created_at', { ascending: false });
+    
+    if (mesDilemmes && mesDilemmes.length > 0) {
+      setMyPosts(mesDilemmes.map(d => ({
+        id: d.id,
+        auteur: d.auteur,
+        tempsPoste: new Date(d.created_at).toLocaleDateString('fr-FR'),
+        question: d.question,
+        optionA: d.option_a,
+        optionB: d.option_b,
+        categories: d.categories || [],
+        votesA: d.votes_a || 0,
+        votesB: d.votes_b || 0,
+      })));
+    }
+
   } catch (e) {
     console.log('Erreur profil:', e);
   }

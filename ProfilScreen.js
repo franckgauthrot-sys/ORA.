@@ -29,8 +29,8 @@ const BADGES = [
 function MiniCard({ d, userVotes, onVote }) {
   const voted = userVotes[d.id];
   const total = d.votesA + d.votesB;
-  const pctA  = total ? Math.round((d.votesA / total) * 100) : 50;
-  const pctB  = 100 - pctA;
+  const pctA  = total ? Math.round((d.votesA / total) * 100) : 0;
+const pctB  = total ? 100 - pctA : 0;
   const barA  = useRef(new Animated.Value(0)).current;
   const barB  = useRef(new Animated.Value(0)).current;
   const isParfait = d.categories?.includes('parfait');
@@ -122,7 +122,13 @@ function MiniCard({ d, userVotes, onVote }) {
           </View>
 
           <Text style={{ fontSize: 11, color: P.textLight, textAlign: 'center', marginTop: 16 }}>{total.toLocaleString()} votes</Text>
-          <Text style={{ fontSize: 11, fontWeight: '800', textAlign: 'center', color: '#c07800', marginTop: 4 }}>{perfLabel}</Text>
+{isPerfect && (
+  <View style={{ alignItems: 'center', marginTop: 8 }}>
+    <View style={{ backgroundColor: '#f0c000', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5 }}>
+      <Text style={{ fontSize: 12, fontWeight: '900', color: '#7a5800' }}>🎯 DILEMME PARFAIT</Text>
+    </View>
+  </View>
+)}
         </View>
       ) : (
         [
@@ -252,7 +258,12 @@ export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onV
           <Text style={styles.name}>{displayName}</Text>
           <Text style={styles.email}>{user?.email}</Text>
           <Text style={styles.stats}>
-            {myPosts.length} posté{myPosts.length > 1 ? 's' : ''} · {votedCount} vote{votedCount > 1 ? 's' : ''}
+              {myPosts.length} posté{myPosts.length > 1 ? 's' : ''} · {votedCount} vote{votedCount > 1 ? 's' : ''} · 
+{feed?.filter(d => d.categories?.includes('parfait') && 
+  d.user_id === user?.id &&
+  Math.abs((d.votesA/(d.votesA+d.votesB||1)*100) - 50) <= 2 && 
+  (d.votesA + d.votesB) > 0
+).length || 0} 🎯
           </Text>
         </View>
       </View>

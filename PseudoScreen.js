@@ -23,16 +23,29 @@ export default function PseudoScreen({ user, onDone }) {
     return;
   }
   setLoading(true);
+  
+  // Timeout de secours après 5s
+  const timeout = setTimeout(() => {
+  setLoading(false);
+  onDone(pseudo.trim()); // ← passe au feed même si timeout
+}, 2000);
+
   try {
-    // D'abord essayer de créer le profil s'il n'existe pas
-    await supabase
+    const { error } = await supabase
       .from('profiles')
       .upsert({ id: user.id, email: user.email, pseudo: pseudo.trim() }, 
         { onConflict: 'id' });
+    
+    clearTimeout(timeout);
+    
+    if (error) {
+      setError('Erreur: ' + error.message);
+      return;
+    }
     onDone(pseudo.trim());
   } catch (e) {
+    clearTimeout(timeout);
     setError('Erreur, réessaie.');
-    console.log('Erreur pseudo:', e);
   } finally {
     setLoading(false);
   }

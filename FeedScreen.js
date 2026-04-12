@@ -65,8 +65,8 @@ function Badge({ catId }) {
 function DilemmeCard({ d, onVote, userVotes }) {
   const voted = userVotes[d.id];
   const total = d.votesA + d.votesB;
-  const pctA  = total === 0 ? 50 : Math.round((d.votesA / total) * 100);
-  const pctB  = 100 - pctA;
+  const pctA  = total === 0 ? 0 : Math.round((d.votesA / total) * 100);
+const pctB  = total === 0 ? 0 : 100 - pctA;
   const barA  = useRef(new Animated.Value(0)).current;
   const barB  = useRef(new Animated.Value(0)).current;
   const barPos = useRef(new Animated.Value(50)).current;
@@ -82,7 +82,7 @@ function DilemmeCard({ d, onVote, userVotes }) {
 
   const isParfait = d.categories.includes('parfait');
   const perfScore = Math.abs(pctA - 50);
-  const isPerfect = isParfait && perfScore <= 2;
+  const isPerfect = isParfait && perfScore <= 2 && total > 0;
   const perfLabel = isPerfect ? '🎯 DILEMME PARFAIT !' : perfScore <= 5 ? '🔥 Très proche !' : perfScore <= 15 ? '👌 Pas mal !' : '💪 Continue !';
 
   useEffect(() => {
@@ -101,13 +101,11 @@ function DilemmeCard({ d, onVote, userVotes }) {
   const animateBars = (pA, pB) => {
   barPos.setValue(50);
   Animated.sequence([
-    Animated.timing(barPos, { toValue: 80, duration: 500, useNativeDriver: false }),
-    Animated.timing(barPos, { toValue: 20, duration: 800, useNativeDriver: false }),
-    Animated.timing(barPos, { toValue: 70, duration: 500, useNativeDriver: false }),
-    Animated.timing(barPos, { toValue: 30, duration: 600, useNativeDriver: false }),
-    Animated.timing(barPos, { toValue: 60, duration: 400, useNativeDriver: false }),
-    Animated.timing(barPos, { toValue: 40, duration: 400, useNativeDriver: false }),
-    Animated.timing(barPos, { toValue: pA, duration: 700, useNativeDriver: false }),
+    Animated.timing(barPos, { toValue: 75, duration: 250, useNativeDriver: false }),
+    Animated.timing(barPos, { toValue: 25, duration: 400, useNativeDriver: false }),
+    Animated.timing(barPos, { toValue: 65, duration: 250, useNativeDriver: false }),
+    Animated.timing(barPos, { toValue: 35, duration: 250, useNativeDriver: false }),
+    Animated.timing(barPos, { toValue: pA, duration: 400, useNativeDriver: false }),
   ]).start();
 };
 
@@ -326,8 +324,14 @@ function DilemmeCard({ d, onVote, userVotes }) {
                 </View>
               </View>
 
-              <Text style={[styles.totalVotes, { marginTop: 16 }]}>{total.toLocaleString()} votes</Text>
-              <Text style={[styles.majorityMsg, { color: '#c07800', marginTop: 4 }]}>{perfLabel}</Text>
+<Text style={[styles.totalVotes, { marginTop: 16 }]}>{total.toLocaleString()} votes</Text>
+{isPerfect && (
+  <View style={{ alignItems: 'center', marginTop: 8 }}>
+    <View style={{ backgroundColor: '#f0c000', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      <Text style={{ fontSize: 12, fontWeight: '900', color: '#7a5800' }}>🎯 DILEMME PARFAIT</Text>
+    </View>
+  </View>
+)}
             </View>
           ) : (
             <>
@@ -360,9 +364,6 @@ function DilemmeCard({ d, onVote, userVotes }) {
                 )}
                 <Text style={styles.totalVotes}>{total.toLocaleString()} votes</Text>
               </View>
-              <Text style={[styles.majorityMsg, { color: isMajority ? P.sage : P.palmPink }]}>
-                {isMajority ? 'Tu es dans la majorité 🙌' : 'Tu es dans la minorité 🤔'}
-              </Text>
             </>
           )}
 
@@ -432,8 +433,8 @@ export default function FeedScreen({ dilemmes, userVotes, onVote, activeTab, onT
   })}
 </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabsContent}>
-        {CATEGORIES.map(cat => {
+<ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabsContent}>    
+     {CATEGORIES.map(cat => {
           const active = activeTab === cat.id;
           const cs = CAT_STYLE[cat.id];
           return (
@@ -468,8 +469,7 @@ const styles = StyleSheet.create({
   tabsContent:  { paddingLeft: 16, paddingRight: 60, gap: 7, paddingVertical: 4 },
   fixedTabs:    { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginBottom: 6 },
   tab:          { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, height: 34, justifyContent: 'center', alignItems: 'center' },
-  tabText:      { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
-  feed:         { padding: 16, paddingBottom: 100 },
+  tabText:      { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },  feed:         { padding: 16, paddingBottom: 100 },
   card:         { backgroundColor: P.card, borderRadius: 20, padding: 20, marginBottom: 14, borderWidth: 1.5, borderColor: P.cardBorder },
   cardHeader:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   avatar:       { width: 34, height: 34, borderRadius: 17, backgroundColor: P.teal, alignItems: 'center', justifyContent: 'center' },

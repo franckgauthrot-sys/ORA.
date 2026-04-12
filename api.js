@@ -75,6 +75,16 @@ export const voterPour = async (dilemmeId, choix) => {
     // Nouveau vote
     await supabase.rpc('increment_vote', { dilemme_id: dilemmeId, column_name: choix === 'A' ? 'votes_a' : 'votes_b' });
   }
+
+// Envoyer la notification
+  try {
+    const { data: notifData, error: notifError } = await supabase.functions.invoke('send-notification', {
+      body: { dilemme_id: dilemmeId, voter_id: userId, choix }
+    });
+    console.log('Notif result:', notifData, notifError);
+  } catch (e) {
+    console.log('Erreur notification:', e);
+  }
 };
 
 export const annulerVote = async (dilemmeId) => {
