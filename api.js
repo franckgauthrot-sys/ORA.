@@ -154,3 +154,11 @@ export const getMesDilemmes = async (userId) => {
   if (error) throw error;
   return data;
 };
+
+export const supprimerDilemme = async (dilemmeId) => {
+  const { error } = await supabase
+    .from('dilemmes')
+    .delete()
+    .eq('id', dilemmeId);
+  if (error) throw error;
+};

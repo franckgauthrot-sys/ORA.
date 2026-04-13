@@ -8,6 +8,7 @@ import AuthScreen from './AuthScreen';
 import { supabase } from './supabase';
 import PseudoScreen from './PseudoScreen';
 import { registerForPushNotifications, setupNotificationListeners } from './notifications';
+import { getDilemmes, postDilemme, voterPour, annulerVote, getMesVotes, supprimerDilemme } from './api';
 
 const P = {
   bg:        '#f2f0eb',
@@ -166,11 +167,35 @@ export default function App() {
   };
 
   const handleRefresh = async () => {
-    setRefreshing(true);
-    await chargerDilemmes();
-    await chargerMesVotes();
-    setRefreshing(false);
-  };
+  setRefreshing(true);
+  await chargerDilemmes();
+  await chargerMesVotes();
+  
+  // Recharger mes dilemmes
+  if (user) {
+    const { data: mesDilemmes } = await supabase
+      .from('dilemmes')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    
+    if (mesDilemmes) {
+      setMyPosts(mesDilemmes.map(d => ({
+        id: d.id,
+        auteur: d.auteur,
+        tempsPoste: new Date(d.created_at).toLocaleDateString('fr-FR'),
+        question: d.question,
+        optionA: d.option_a,
+        optionB: d.option_b,
+        categories: d.categories || [],
+        votesA: d.votes_a || 0,
+        votesB: d.votes_b || 0,
+      })));
+    }
+  }
+  
+  setRefreshing(false);
+};
 
   const handleSignOut = async () => {
   await supabase.auth.signOut();
@@ -235,6 +260,16 @@ export default function App() {
     setPage('feed');
   };
 
+  const handleSupprimerDilemme = async (id) => {
+  try {
+    await supprimerDilemme(id);
+    setFeed(f => f.filter(d => d.id !== id));
+    setMyPosts(p => p.filter(d => d.id !== id));
+  } catch (e) {
+    console.log('Erreur suppression:', e);
+  }
+};
+
   const votedCount = Object.keys(userVotes).length;
   const navItems = [
     { id: 'feed',   icon: '⊞', label: 'Feed' },
@@ -284,7 +319,8 @@ export default function App() {
           pseudo={pseudo}
           onPseudoChange={setPseudo}
           newVoteDilemmes={newVoteDilemmes}
-  onVoteSeen={(id) => setNewVoteDilemmes(prev => prev.filter(d => d !== id))}
+          onVoteSeen={(id) => setNewVoteDilemmes(prev => prev.filter(d => d !== id))}
+          onSupprimerDilemme={handleSupprimerDilemme}
 />
       
       )}
