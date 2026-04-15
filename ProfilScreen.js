@@ -1,4 +1,3 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, TextInput, Modal } from 'react-native';
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabase';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, TextInput, Modal, Alert } from 'react-native';
@@ -308,37 +307,37 @@ export default function ProfilScreen({ myPosts, votedCount, userVotes, feed, onV
       )}
 
       {tab === 'posts' && (
-        myPosts.length === 0
-          ? <Text style={styles.empty}>Tu n'as pas encore posté 🌵</Text>
-          : myPosts.map(d => {
-  const live = feed?.find(x => x.id === d.id) || d;
-  const hasNew = newVoteDilemmes?.includes(d.id);
-  return (
-    <TouchableOpacity key={d.id} onPress={() => onVoteSeen?.(d.id)} activeOpacity={1}>
-      <View style={{ position: 'relative' }}>
-        {hasNew && (
-          <View style={{ position: 'absolute', top: 10, right: 10, width: 10, height: 10, borderRadius: 5, backgroundColor: '#e8503a', zIndex: 10 }} />
-        )}
-        <MiniCard d={live} userVotes={userVotes} onVote={onVote} />
-        <TouchableOpacity 
-          onPress={() => {
-            Alert.alert(
-              'Supprimer ce dilemme ?',
-              'Cette action est irréversible.',
-              [
-                { text: 'Annuler', style: 'cancel' },
-                { text: 'Supprimer', style: 'destructive', onPress: () => onSupprimerDilemme(d.id) },
-              ]
-            );
-          }}
-          style={{ alignItems: 'center', marginTop: -8, marginBottom: 6 }}>
-          <Text style={{ fontSize: 11, color: '#e05050', fontWeight: '600' }}>🗑️ Supprimer ce dilemme</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-})}
-
+  myPosts.length === 0
+    ? <Text style={styles.empty}>Tu n'as pas encore posté 🌵</Text>
+    : myPosts.map(d => {
+        const live = feed?.find(x => x.id === d.id) || d;
+        const hasNew = newVoteDilemmes?.includes(d.id);
+        return (
+          <TouchableOpacity key={d.id} onPress={() => onVoteSeen?.(d.id)} activeOpacity={1}>
+            <View style={{ position: 'relative' }}>
+              {hasNew && (
+                <View style={{ position: 'absolute', top: 10, right: 10, width: 10, height: 10, borderRadius: 5, backgroundColor: '#e8503a', zIndex: 10 }} />
+              )}
+              <MiniCard d={live} userVotes={userVotes} onVote={onVote} />
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    'Supprimer ce dilemme ?',
+                    'Cette action est irréversible.',
+                    [
+                      { text: 'Annuler', style: 'cancel' },
+                      { text: 'Supprimer', style: 'destructive', onPress: () => onSupprimerDilemme(d.id) },
+                    ]
+                  );
+                }}
+                style={{ alignItems: 'center', marginTop: -8, marginBottom: 6 }}>
+                <Text style={{ fontSize: 11, color: '#e05050', fontWeight: '600' }}>🗑️ Supprimer ce dilemme</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        );
+      })
+)}
 
       {tab === 'badges' && (
   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
