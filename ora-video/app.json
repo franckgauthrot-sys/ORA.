@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "35a2edfd-2cfe-4d37-9099-32bbf7c4ee34"
+      }
+    },
+    "android": {
+      "package": "com.frgotro.oravideo"
+    }
+  }
+}

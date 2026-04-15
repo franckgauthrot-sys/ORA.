@@ -3,7 +3,6 @@ import FeedScreen, { DILEMMES_INIT } from './FeedScreen';
 import PostScreen from './PostScreen';
 import ProfilScreen from './ProfilScreen';
 import { useState, useEffect } from 'react';
-import { getDilemmes, postDilemme, voterPour, annulerVote, getMesVotes } from './api';
 import AuthScreen from './AuthScreen';
 import { supabase } from './supabase';
 import PseudoScreen from './PseudoScreen';
