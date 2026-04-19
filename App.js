@@ -27,58 +27,61 @@ export default function App() {
   const [user, setUser]             = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [pseudo, setPseudo]         = useState(null);
-  const [newVoteDilemmes, setNewVoteDilemmes] = useState([]); // liste des dilemme_id avec nouveaux votes
+  const [newVoteDilemmes, setNewVoteDilemmes] = useState([]);
 
   const loadProfile = async (sessionUser) => {
-  try {
-    const { data } = await supabase
-      .from('profiles')
-      .select('pseudo')
-      .eq('id', sessionUser.id)
-      .maybeSingle();
-
-    if (!data) {
-      await supabase
+    try {
+      const { data } = await supabase
         .from('profiles')
-        .upsert({ id: sessionUser.id, email: sessionUser.email }, { onConflict: 'id' });
-    } else if (data?.pseudo) {
-      setPseudo(data.pseudo);
-    }
-    
-    await chargerMesVotes();
+        .select('pseudo')
+        .eq('id', sessionUser.id)
+        .maybeSingle();
 
-    // Charger mes dilemmes
-    const { data: mesDilemmes } = await supabase
-      .from('dilemmes')
-      .select('*')
-      .eq('user_id', sessionUser.id)
-      .order('created_at', { ascending: false });
-    
-    if (mesDilemmes && mesDilemmes.length > 0) {
-      setMyPosts(mesDilemmes.map(d => ({
-        id: d.id,
-        auteur: d.auteur,
-        tempsPoste: new Date(d.created_at).toLocaleDateString('fr-FR'),
-        question: d.question,
-        optionA: d.option_a,
-        optionB: d.option_b,
-        categories: d.categories || [],
-        votesA: d.votes_a || 0,
-        votesB: d.votes_b || 0,
-      })));
-    }
+      if (!data) {
+        await supabase
+          .from('profiles')
+          .upsert({ id: sessionUser.id, email: sessionUser.email }, { onConflict: 'id' });
+      } else if (data?.pseudo) {
+        setPseudo(data.pseudo);
+      }
 
-  } catch (e) {
-    console.log('Erreur profil:', e);
-  }
-};
+      await chargerMesVotes();
+
+      const { data: mesDilemmes } = await supabase
+        .from('dilemmes')
+        .select('*')
+        .eq('user_id', sessionUser.id)
+        .order('created_at', { ascending: false });
+
+      if (mesDilemmes && mesDilemmes.length > 0) {
+        setMyPosts(mesDilemmes.map(d => ({
+          id: d.id,
+          auteur: d.auteur,
+          tempsPoste: new Date(d.created_at).toLocaleDateString('fr-FR'),
+          question: d.question,
+          optionA: d.option_a,
+          optionB: d.option_b,
+          categories: d.categories || [],
+          votesA: d.votes_a || 0,
+          votesB: d.votes_b || 0,
+        })));
+      }
+
+    } catch (e) {
+      console.log('Erreur profil:', e);
+    }
+  };
 
   useEffect(() => {
+    // FIX : on attend la session avant de charger les dilemmes
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         setUser(session.user);
         await loadProfile(session.user);
       }
+      await chargerDilemmes(); // ← après la session, pas en parallèle
+      await chargerMesVotes();
+      setLoading(false);       // ← plus de setTimeout arbitraire
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -91,10 +94,6 @@ export default function App() {
         await chargerMesVotes();
       }
     });
-
-    chargerDilemmes();
-    chargerMesVotes();
-    setTimeout(() => setLoading(false), 5000);
 
     return () => subscription?.unsubscribe();
   }, []);
@@ -116,15 +115,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-  if (user) {
-    registerForPushNotifications(user.id);
-   const cleanup = setupNotificationListeners((notif) => {
-  const dilemmeId = notif?.request?.content?.data?.dilemme_id;
-  if (dilemmeId) setNewVoteDilemmes(prev => [...new Set([...prev, dilemmeId])]);
-});
-    return cleanup;
-  }
-}, [user]);
+    if (user) {
+      registerForPushNotifications(user.id);
+      const cleanup = setupNotificationListeners((notif) => {
+        const dilemmeId = notif?.request?.content?.data?.dilemme_id;
+        if (dilemmeId) setNewVoteDilemmes(prev => [...new Set([...prev, dilemmeId])]);
+      });
+      return cleanup;
+    }
+  }, [user]);
 
   const chargerDilemmes = async () => {
     try {
@@ -149,8 +148,6 @@ export default function App() {
     } catch (e) {
       console.log('Erreur chargement:', e);
       setFeed(DILEMMES_INIT);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -166,45 +163,44 @@ export default function App() {
   };
 
   const handleRefresh = async () => {
-  setRefreshing(true);
-  await chargerDilemmes();
-  await chargerMesVotes();
-  
-  // Recharger mes dilemmes
-  if (user) {
-    const { data: mesDilemmes } = await supabase
-      .from('dilemmes')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    
-    if (mesDilemmes) {
-      setMyPosts(mesDilemmes.map(d => ({
-        id: d.id,
-        auteur: d.auteur,
-        tempsPoste: new Date(d.created_at).toLocaleDateString('fr-FR'),
-        question: d.question,
-        optionA: d.option_a,
-        optionB: d.option_b,
-        categories: d.categories || [],
-        votesA: d.votes_a || 0,
-        votesB: d.votes_b || 0,
-      })));
+    setRefreshing(true);
+    await chargerDilemmes();
+    await chargerMesVotes();
+
+    if (user) {
+      const { data: mesDilemmes } = await supabase
+        .from('dilemmes')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (mesDilemmes) {
+        setMyPosts(mesDilemmes.map(d => ({
+          id: d.id,
+          auteur: d.auteur,
+          tempsPoste: new Date(d.created_at).toLocaleDateString('fr-FR'),
+          question: d.question,
+          optionA: d.option_a,
+          optionB: d.option_b,
+          categories: d.categories || [],
+          votesA: d.votes_a || 0,
+          votesB: d.votes_b || 0,
+        })));
+      }
     }
-  }
-  
-  setRefreshing(false);
-};
+
+    setRefreshing(false);
+  };
 
   const handleSignOut = async () => {
-  await supabase.auth.signOut();
-  setUser(null);
-  setPseudo(null);
-  setUserVotes({});  // ← déjà là
-  setMyPosts([]);    // ← déjà là
-  setFeed([]);       // ← ajoute ça !
-  await chargerDilemmes(); // ← recharge depuis Supabase
-};
+    await supabase.auth.signOut();
+    setUser(null);
+    setPseudo(null);
+    setUserVotes({});
+    setMyPosts([]);
+    setFeed([]);
+    await chargerDilemmes();
+  };
 
   const handleVote = async (id, choix) => {
     const prev = userVotes[id];
@@ -260,14 +256,14 @@ export default function App() {
   };
 
   const handleSupprimerDilemme = async (id) => {
-  try {
-    await supprimerDilemme(id);
-    setFeed(f => f.filter(d => d.id !== id));
-    setMyPosts(p => p.filter(d => d.id !== id));
-  } catch (e) {
-    console.log('Erreur suppression:', e);
-  }
-};
+    try {
+      await supprimerDilemme(id);
+      setFeed(f => f.filter(d => d.id !== id));
+      setMyPosts(p => p.filter(d => d.id !== id));
+    } catch (e) {
+      console.log('Erreur suppression:', e);
+    }
+  };
 
   const votedCount = Object.keys(userVotes).length;
   const navItems = [
@@ -320,28 +316,27 @@ export default function App() {
           newVoteDilemmes={newVoteDilemmes}
           onVoteSeen={(id) => setNewVoteDilemmes(prev => prev.filter(d => d !== id))}
           onSupprimerDilemme={handleSupprimerDilemme}
-/>
-      
+        />
       )}
 
       <View style={styles.nav}>
         {navItems.map(item => {
-  const active = page === item.id;
-  return (
-    <TouchableOpacity key={item.id} style={styles.navItem} onPress={() => {
-      setPage(item.id);
-if (item.id === 'profil') setNewVoteDilemmes([]);
-    }}>
-      <View>
-        <Text style={[styles.navIcon, { color: active ? P.teal : P.textMid }]}>{item.icon}</Text>
-        {item.id === 'profil' && newVoteDilemmes.length > 0 && (
-  <View style={styles.pastille} />
-)}
-      </View>
-      <Text style={[styles.navLabel, { color: active ? P.teal : P.textMid }]}>{item.label.toUpperCase()}</Text>
-    </TouchableOpacity>
-  );
-})}
+          const active = page === item.id;
+          return (
+            <TouchableOpacity key={item.id} style={styles.navItem} onPress={() => {
+              setPage(item.id);
+              if (item.id === 'profil') setNewVoteDilemmes([]);
+            }}>
+              <View>
+                <Text style={[styles.navIcon, { color: active ? P.teal : P.textMid }]}>{item.icon}</Text>
+                {item.id === 'profil' && newVoteDilemmes.length > 0 && (
+                  <View style={styles.pastille} />
+                )}
+              </View>
+              <Text style={[styles.navLabel, { color: active ? P.teal : P.textMid }]}>{item.label.toUpperCase()}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -355,5 +350,5 @@ const styles = StyleSheet.create({
   navItem:     { alignItems: 'center', gap: 3, position: 'relative' },
   navIcon:     { fontSize: 20 },
   navLabel:    { fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
-  pastille: { position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: '#e8503a' },
+  pastille:    { position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: '#e8503a' },
 });

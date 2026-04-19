@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import 'react-native-get-random-values';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const getUserId = async () => {
